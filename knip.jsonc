@@ -5,14 +5,17 @@
     "catalog": "off",
   },
   "ignoreIssues": {
-    "web/**": ["files", "exports", "types"],
-    "packages/shared/**": ["files", "exports", "types"],
-    "worker/**": ["files", "exports", "types"],
+    "web/**": ["files", "types"],
+    "packages/shared/**": ["files", "types"],
+    "worker/**": ["files", "types"],
   },
   "workspaces": {
     "worker": {
-      // Tests intentionally load these from @langfuse/shared's dependency tree.
-      "ignoreDependencies": ["@aws-sdk/client-bedrock-runtime"],
+      // These modules are loaded from runtime-computed paths.
+      "entry": [
+        "src/backgroundMigrations/*.ts",
+        "src/features/tokenisation/worker-thread.ts",
+      ],
     },
     "web": {
       // Include runtime JavaScript modules such as src/env.mjs in dependency analysis.
