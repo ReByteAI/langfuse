@@ -1,4 +1,3 @@
-/* eslint-disable @repo/no-abstracted-overlay-trigger */
 "use client";
 
 import * as React from "react";
@@ -9,7 +8,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -19,22 +17,7 @@ import {
 import Link from "next/link";
 import { LangfuseLogo } from "@/src/components/design-system/LangfuseLogo/LangfuseLogo";
 import { type RouteGroup } from "@/src/components/layouts/routes";
-import {
-  ArrowUp,
-  ArrowUp10,
-  BadgeCheck,
-  ChevronsUpDown,
-  ChevronDownIcon,
-  ExternalLink,
-  Grid2X2,
-  HardDriveDownload,
-  Info,
-  Map,
-  Newspaper,
-  X,
-} from "lucide-react";
-import { SiGithub } from "react-icons/si";
-import { VERSION } from "@/src/constants";
+import { ChevronsUpDown, ChevronDownIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,58 +30,16 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/src/components/ui/dropdown-menu";
-import { Button } from "@/src/components/ui/button";
-import { StatusBadge } from "@/src/components/ui/StatusBadge/StatusBadge";
-import { planLabels, type Plan } from "@langfuse/shared";
 import { Avatar } from "@/src/components/design-system/Avatar/Avatar";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/src/components/ui/card";
 import { OrganizationDropdownMenu } from "@/src/components/OrganizationDropdownMenu/OrganizationDropdownMenu";
 import { ProjectDropdownMenu } from "@/src/components/ProjectDropdownMenu/ProjectDropdownMenu";
 import { assertUnreachable } from "@/src/utils/types";
-import { SIDEBAR_NOTIFICATIONS, type SidebarNotification } from "./utils";
 import { useOrgProjectSwitchPaths } from "@/src/features/projects/hooks";
 import {
   APP_SHELL_CHROME_ROW_CLASS,
   APP_SHELL_CHROME_ROW_TEST_ID,
 } from "@/src/components/layouts/app-shell-chrome";
 import { cn } from "@/src/utils/tailwind";
-
-const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
-
-type SelfHostedPlan = Extract<Plan, "oss" | `self-hosted:${string}`>;
-
-type SidebarVersionState =
-  | { deployment: "cloud" }
-  | {
-      deployment: "self-hosted";
-      plan: SelfHostedPlan;
-      release:
-        | { status: "current" }
-        | {
-            status: "update-available";
-            updateType: "major" | "minor" | "patch";
-            latestRelease: string;
-          };
-      migration: { status: "idle" } | { status: "in-progress"; phase: string };
-    };
-
-const selfHostedPlanLabels = {
-  oss: { short: "OSS", long: "Open Source" },
-  "self-hosted:pro": {
-    short: "Pro",
-    long: planLabels["self-hosted:pro"],
-  },
-  "self-hosted:enterprise": {
-    short: "EE",
-    long: planLabels["self-hosted:enterprise"],
-  },
-} satisfies Record<SelfHostedPlan, { short: string; long: string }>;
 
 type UserNavigationItemBase = {
   name: string;
@@ -128,12 +69,6 @@ type SidebarUser = {
   avatar: string;
 };
 
-type SidebarNotificationState = {
-  dismissedIds: string[];
-  onDismiss: (id: string) => void;
-  onLinkClick: (id: string) => void;
-};
-
 type OrganizationDropdownOption = Extract<
   React.ComponentProps<typeof OrganizationDropdownMenu>,
   { state: "loaded" }
@@ -160,14 +95,6 @@ type AppSidebarProps = {
   user: SidebarUser;
   userMenuItems: UserNavigationItem[];
   isMobile: boolean;
-  logo: {
-    lightModeHref?: string;
-    darkModeHref?: string;
-  };
-  versionState: SidebarVersionState;
-  showDemoBadge: boolean;
-  v4UpgradeUiEnabled: boolean;
-  notificationState: SidebarNotificationState;
   organization: { id: string; name: string } | null;
   project: { id: string; name: string } | null;
   organizations: OrganizationOption[] | null;
@@ -181,29 +108,12 @@ export function AppSidebar({
   user,
   userMenuItems,
   isMobile,
-  logo,
-  versionState,
-  showDemoBadge,
-  v4UpgradeUiEnabled,
-  notificationState,
   organization,
   project,
   organizations,
   canCreateOrganizations,
   canCreateProjects,
 }: AppSidebarProps) {
-  const activeNotifications = !v4UpgradeUiEnabled
-    ? SIDEBAR_NOTIFICATIONS.filter((notification) => {
-        if (notificationState.dismissedIds.includes(notification.id)) {
-          return false;
-        }
-        if (!notification.createdAt) return true;
-
-        const createdAt = new Date(notification.createdAt).getTime();
-        return Date.now() <= createdAt + (notification.ttlMs ?? TWO_WEEKS_MS);
-      })
-    : [];
-
   return (
     <Sidebar collapsible="icon" variant="sidebar">
       <SidebarHeader>
@@ -214,17 +124,10 @@ export function AppSidebar({
             "min-w-0 gap-2 px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0",
           )}
         >
-          <Link href="/" className="flex items-center">
-            <LangfuseLogo
-              logoLightModeHref={logo.lightModeHref}
-              logoDarkModeHref={logo.darkModeHref}
-            />
+          <Link href="/" className="flex items-center" aria-label="Rebyte home">
+            <LangfuseLogo />
           </Link>
-          <div className="ml-auto flex min-w-0 items-center overflow-hidden group-data-[collapsible=icon]:hidden">
-            <VersionLabel state={versionState} />
-          </div>
         </div>
-        {showDemoBadge && <DemoBadge />}
       </SidebarHeader>
       <SidebarContent>
         {isMobile && organization && (
@@ -238,14 +141,6 @@ export function AppSidebar({
         )}
         <NavMain items={navItems} />
         <div className="flex-1" />
-        {activeNotifications.length > 0 && (
-          <div className="flex flex-col gap-2 p-2">
-            <SidebarNotifications
-              state={notificationState}
-              activeNotifications={activeNotifications}
-            />
-          </div>
-        )}
         <NavMain items={secondaryNavItems} />
       </SidebarContent>
       <SidebarFooter>
@@ -331,99 +226,6 @@ function MobileNavSwitcher({
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
-  );
-}
-
-function SidebarNotifications({
-  state,
-  activeNotifications,
-}: {
-  state: SidebarNotificationState;
-  activeNotifications: SidebarNotification[];
-}) {
-  const visibleNotifications = activeNotifications.slice(0, 3);
-  const frontNotification = visibleNotifications[0];
-  const backCount = visibleNotifications.length - 1;
-  const peekOffset = 8;
-  const peekScaleStep = 0.05;
-
-  return (
-    <div
-      className="group-data-[collapsible=icon]:hidden"
-      style={{ paddingBottom: backCount * peekOffset + 2 }}
-    >
-      <div className="relative">
-        {Array.from({ length: backCount }).map((_, index) => {
-          const stackIndex = index + 1;
-          return (
-            <Card
-              key={`stack-${stackIndex}`}
-              aria-hidden
-              className="bg-card pointer-events-none absolute inset-0 rounded-md shadow-none"
-              style={{
-                transform: `translateY(${stackIndex * peekOffset}px) scaleX(${
-                  1 - stackIndex * peekScaleStep
-                })`,
-                transformOrigin: "top center",
-                zIndex: visibleNotifications.length - stackIndex,
-              }}
-            />
-          );
-        })}
-        <Card
-          key={frontNotification.id}
-          className="bg-card relative max-h-60 overflow-hidden rounded-md shadow-none"
-          style={{ zIndex: visibleNotifications.length }}
-        >
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute top-2.5 right-1.5 h-5 w-5 p-0"
-            onClick={() => state.onDismiss(frontNotification.id)}
-            title="Dismiss"
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-          <CardHeader className="px-3 pt-2.5 pr-6 pb-0">
-            <CardTitle className="text-sm">{frontNotification.title}</CardTitle>
-            <CardDescription className="mt-1">
-              {frontNotification.description}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-3 pt-1.5 pb-2.5">
-            {frontNotification.link &&
-              (frontNotification.linkImage ? (
-                <Link
-                  href={frontNotification.link}
-                  target="_blank"
-                  onClick={() => state.onLinkClick(frontNotification.id)}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    alt={frontNotification.linkImage.alt}
-                    src={frontNotification.linkImage.src}
-                  />
-                </Link>
-              ) : (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="w-full"
-                  asChild
-                >
-                  <Link
-                    href={frontNotification.link}
-                    target="_blank"
-                    onClick={() => state.onLinkClick(frontNotification.id)}
-                  >
-                    {frontNotification.linkTitle ?? "Learn more"} &rarr;
-                  </Link>
-                </Button>
-              ))}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
   );
 }
 
@@ -527,174 +329,3 @@ function NavUser({
     </SidebarMenu>
   );
 }
-
-const DemoBadge = () => {
-  return (
-    <SidebarGroup className="border-b">
-      <SidebarGroupLabel>Demo Project (view only)</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip="Use Demo App to create traces"
-              variant="cta"
-            >
-              <Link
-                href="https://langfuse.com/docs/demo"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="h-4 w-4" />
-                <span>Use Demo App</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Your Langfuse Organizations">
-              <Link href="/">
-                <Grid2X2 className="h-4 w-4" />
-                <span>Your Langfuse Orgs</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
-};
-
-const VersionLabel = ({ state }: { state: SidebarVersionState }) => {
-  const selfHostedPlanLabel =
-    state.deployment === "self-hosted"
-      ? selfHostedPlanLabels[state.plan]
-      : null;
-  const backgroundMigrationStatus =
-    state.deployment === "self-hosted" &&
-    state.migration.status === "in-progress"
-      ? state.migration.phase
-      : null;
-  const update =
-    state.deployment === "self-hosted" &&
-    state.release.status === "update-available"
-      ? state.release
-      : null;
-  const versionText = `${VERSION}${
-    selfHostedPlanLabel ? ` ${selfHostedPlanLabel.short}` : ""
-  }`;
-  const color = React.useMemo(() => {
-    if (!update) return undefined;
-    if (update.updateType === "major") return "text-dark-red";
-    if (update.updateType === "minor") return "text-dark-yellow";
-    if (update.updateType === "patch") return undefined;
-    return assertUnreachable(update.updateType);
-  }, [update]);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="xs"
-          className="h-5 max-w-full min-w-0 translate-y-0.5 py-0 text-[0.625rem] leading-none"
-        >
-          <span className="truncate" title={versionText}>
-            {versionText}
-          </span>
-          {backgroundMigrationStatus && (
-            <StatusBadge
-              type={backgroundMigrationStatus}
-              showText={false}
-              variant="transparent"
-            />
-          )}
-          {update && !backgroundMigrationStatus && (
-            <ArrowUp className={`h-3 w-3 ${color}`} />
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-        {update ? (
-          <>
-            <DropdownMenuLabel>
-              New {update.updateType} version: {update.latestRelease}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-          </>
-        ) : state.deployment === "self-hosted" ? (
-          <>
-            <DropdownMenuLabel>This is the latest release</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-          </>
-        ) : null}
-        {selfHostedPlanLabel && (
-          <>
-            <DropdownMenuLabel className="flex items-center font-normal">
-              <BadgeCheck size={16} className="mr-2" />
-              {selfHostedPlanLabel.long}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-          </>
-        )}
-        <DropdownMenuItem asChild>
-          <Link
-            href="https://github.com/langfuse/langfuse/releases"
-            target="_blank"
-          >
-            <SiGithub size={16} className="mr-2" />
-            Releases
-          </Link>
-        </DropdownMenuItem>
-        {state.deployment === "self-hosted" && (
-          <DropdownMenuItem asChild>
-            <Link href="/background-migrations">
-              <ArrowUp10 size={16} className="mr-2" />
-              Background Migrations
-              {backgroundMigrationStatus && (
-                <StatusBadge
-                  type={backgroundMigrationStatus}
-                  showText={false}
-                  variant="transparent"
-                />
-              )}
-            </Link>
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem asChild>
-          <Link href="https://langfuse.com/changelog" target="_blank">
-            <Newspaper size={16} className="mr-2" />
-            Changelog
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="https://langfuse.com/roadmap" target="_blank">
-            <Map size={16} className="mr-2" />
-            Roadmap
-          </Link>
-        </DropdownMenuItem>
-        {state.deployment === "self-hosted" && (
-          <DropdownMenuItem asChild>
-            <Link href="https://langfuse.com/pricing-self-host" target="_blank">
-              <Info size={16} className="mr-2" />
-              Compare Versions
-            </Link>
-          </DropdownMenuItem>
-        )}
-        {update && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link
-                href="https://langfuse.com/docs/deployment/self-host#update"
-                target="_blank"
-              >
-                <HardDriveDownload size={16} className="mr-2" />
-                Update
-              </Link>
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};

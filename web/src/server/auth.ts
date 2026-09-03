@@ -82,6 +82,7 @@ import {
 import { canCreateOrganizations } from "@/src/features/organizations/server/canCreateOrganizations";
 import {
   isRebyteFederatedSignInAllowed,
+  selectRebyteFederationProviders,
   type RebyteFederationClaims,
 } from "@/src/features/rebyte-federation/server/assertion";
 
@@ -773,14 +774,22 @@ export async function getAuthOptions(requestContext?: {
   adClickIds?: AdClickIds;
   rebyteFederationClaims?: RebyteFederationClaims;
 }): Promise<NextAuthOptions> {
+  const federationEnabled = Boolean(env.REBYTE_FEDERATION_SECRET);
   let dynamicSsoProviders: Provider[] = [];
-  try {
-    dynamicSsoProviders = await loadSsoProviders();
-  } catch (e) {
-    logger.error("Error loading dynamic SSO providers", e);
-    traceException(e);
+  // A federated deployment is entered only through the verified Rebyte launch
+  // flow. Avoid exposing credentials or tenant-configured providers there.
+  if (!federationEnabled) {
+    try {
+      dynamicSsoProviders = await loadSsoProviders();
+    } catch (e) {
+      logger.error("Error loading dynamic SSO providers", e);
+      traceException(e);
+    }
   }
-  const providers = [...staticProviders, ...dynamicSsoProviders];
+  const providers = selectRebyteFederationProviders({
+    federationEnabled,
+    providers: [...staticProviders, ...dynamicSsoProviders],
+  });
 
   const data: NextAuthOptions = {
     logger: nextAuthLogger,
@@ -946,9 +955,9 @@ export async function getAuthOptions(requestContext?: {
                             )
                           : true
                         : false,
-                    canCreateOrganizations: canCreateOrganizations(
-                      dbUser.email,
-                    ),
+                    canCreateOrganizations: federationEnabled
+                      ? false
+                      : canCreateOrganizations(dbUser.email),
                     organizations: dbUser.organizationMemberships.map(
                       (orgMembership) => {
                         const parsedCloudConfig = CloudConfigSchema.safeParse(
@@ -1029,7 +1038,7 @@ export async function getAuthOptions(requestContext?: {
         return instrumentAsync({ name: "next-auth-sign-in" }, async () => {
           if (
             !isRebyteFederatedSignInAllowed({
-              federationEnabled: Boolean(env.REBYTE_FEDERATION_SECRET),
+              federationEnabled,
               provider: account?.provider,
               providerAccountId: account?.providerAccountId,
               claims: requestContext?.rebyteFederationClaims,

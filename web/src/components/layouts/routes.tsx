@@ -1,18 +1,16 @@
 import { type Flag } from "@/src/features/feature-flags/types";
 import { type ProjectScope } from "@langfuse/shared";
 import {
+  ArrowLeft,
   BellRing,
   Database,
   LayoutDashboard,
-  LifeBuoy,
   ListTree,
   type LucideIcon,
-  Settings,
   UsersIcon,
   TerminalIcon,
   Lightbulb,
   Grid2X2,
-  Sparkle,
   FileJson,
   Search,
   Home,
@@ -25,16 +23,12 @@ import { type ReactNode } from "react";
 import { type Entitlement } from "@/src/features/entitlements/constants/entitlements";
 import { type Session } from "next-auth";
 import { type OrganizationScope } from "@/src/features/rbac/constants/organizationAccessRights";
-import { SupportButton } from "@/src/components/nav/support-button";
-import { V4MigrationNavItem } from "@/src/features/v4-migration/V4MigrationNavItem";
-import { V4SidebarToggle } from "@/src/features/events/components/V4SidebarToggle";
-import { BookACallButton } from "@/src/components/nav/book-a-call-button";
 import { SidebarMenuButton } from "@/src/components/ui/sidebar";
 import { KeyboardShortcut } from "@/src/components/design-system/KeyboardShortcut/KeyboardShortcut";
 import { useCommandMenu } from "@/src/features/command-k-menu/CommandMenuProvider";
 import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
-import { CloudStatusMenu } from "@/src/features/cloud-status-notification/components/CloudStatusMenu";
 import { type ProductModule } from "@/src/ee/features/ui-customization/productModuleSchema";
+import { REBYTE_APP_URL } from "@/src/constants/rebyte";
 
 export enum RouteSection {
   Main = "main",
@@ -201,70 +195,10 @@ export const ROUTES: Route[] = [
     section: RouteSection.Main,
   },
   {
-    // Keep Action required first in the secondary nav so it is not sandwiched
-    // between regular items like Upgrade Plan and Settings.
-    title: "Update",
-    pathname: "",
+    title: "Back to Rebyte",
+    icon: ArrowLeft,
     section: RouteSection.Secondary,
-    show: ({ projectId, v4UpgradeUiAvailable }) =>
-      v4UpgradeUiAvailable && projectId !== undefined,
-    menuNode: <V4MigrationNavItem />,
-  },
-  {
-    title: "Cloud Status",
-    section: RouteSection.Secondary,
-    pathname: "",
-    menuNode: <CloudStatusMenu />,
-  },
-  {
-    title: "V4 Preview",
-    pathname: "",
-    section: RouteSection.Secondary,
-    featureFlag: "v4BetaToggleVisible",
-    menuNode: <V4SidebarToggle />,
-  },
-  {
-    title: "Upgrade Plan",
-    icon: Sparkle,
-    pathname: "/project/[projectId]/settings/billing",
-    section: RouteSection.Secondary,
-    entitlements: ["cloud-billing"],
-    organizationRbacScope: "langfuseCloudBilling:CRUD",
-    show: ({ organization }) => organization?.plan === "cloud:hobby",
-  },
-  {
-    title: "Upgrade Plan",
-    icon: Sparkle,
-    pathname: "/organization/[organizationId]/settings/billing",
-    section: RouteSection.Secondary,
-    entitlements: ["cloud-billing"],
-    organizationRbacScope: "langfuseCloudBilling:CRUD",
-    show: ({ organization }) => organization?.plan === "cloud:hobby",
-  },
-  {
-    title: "Settings",
-    pathname: "/project/[projectId]/settings",
-    icon: Settings,
-    section: RouteSection.Secondary,
-  },
-  {
-    title: "Settings",
-    pathname: "/organization/[organizationId]/settings",
-    icon: Settings,
-    section: RouteSection.Secondary,
-  },
-  {
-    title: "Book a call",
-    section: RouteSection.Secondary,
-    pathname: "",
-    menuNode: <BookACallButton />,
-  },
-  {
-    title: "Support",
-    icon: LifeBuoy,
-    section: RouteSection.Secondary,
-    pathname: "", // Empty pathname since this is a dropdown
-    menuNode: <SupportButton />,
+    pathname: REBYTE_APP_URL,
   },
 ];
 

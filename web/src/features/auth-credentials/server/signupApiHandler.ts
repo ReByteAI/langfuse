@@ -25,6 +25,10 @@ export async function validateSignupEligibility({
 }: {
   email: string;
 }): Promise<string | null> {
+  if (env.REBYTE_FEDERATION_SECRET) {
+    return "Sign up is disabled. Continue from Rebyte.";
+  }
+
   // Block if disabled by env
   if (
     env.NEXT_PUBLIC_SIGN_UP_DISABLED === "true" ||

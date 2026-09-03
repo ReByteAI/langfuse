@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isRebyteFederatedSignInAllowed,
+  selectRebyteFederationProviders,
   signRebyteFederationAssertion,
   verifyRebyteFederationAssertion,
 } from "@/src/features/rebyte-federation/server/assertion";
@@ -122,7 +123,7 @@ describe("Rebyte federation assertion", () => {
     ).toBe(false);
   });
 
-  it("does not affect other identity providers or disabled deployments", () => {
+  it("rejects other identity providers for federated deployments", () => {
     expect(
       isRebyteFederatedSignInAllowed({
         federationEnabled: true,
@@ -130,7 +131,10 @@ describe("Rebyte federation assertion", () => {
         providerAccountId: undefined,
         claims: undefined,
       }),
-    ).toBe(true);
+    ).toBe(false);
+  });
+
+  it("does not affect disabled deployments", () => {
     expect(
       isRebyteFederatedSignInAllowed({
         federationEnabled: false,
@@ -139,6 +143,27 @@ describe("Rebyte federation assertion", () => {
         claims: undefined,
       }),
     ).toBe(true);
+  });
+
+  it("exposes only the custom OIDC provider in federation mode", () => {
+    const providers = [
+      { id: "credentials", name: "Credentials" },
+      { id: "github", name: "GitHub" },
+      { id: "custom", name: "Clerk" },
+    ];
+
+    expect(
+      selectRebyteFederationProviders({
+        federationEnabled: true,
+        providers,
+      }),
+    ).toEqual([{ id: "custom", name: "Clerk" }]);
+    expect(
+      selectRebyteFederationProviders({
+        federationEnabled: false,
+        providers,
+      }),
+    ).toEqual(providers);
   });
 
   it("binds revocations to their action, tenant, user, and short lifetime", () => {

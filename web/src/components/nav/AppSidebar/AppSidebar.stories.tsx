@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { Activity, BookOpen, Home, Settings } from "lucide-react";
+import { Activity, ArrowLeft, BookOpen, Home } from "lucide-react";
 import { expect, fn } from "storybook/test";
 
 import preview from "../../../../.storybook/preview";
@@ -12,19 +12,6 @@ import {
 import { cn } from "@/src/utils/tailwind";
 
 type AppSidebarProps = ComponentProps<typeof AppSidebar>;
-type VersionState = AppSidebarProps["versionState"];
-type NotificationState = AppSidebarProps["notificationState"];
-
-const launchWeekNotificationIds = ["lw5-1", "lw5-2", "lw5-3", "lw5-4", "lw5-5"];
-const duringLaunchWeek = new Date("2026-05-29T12:00:00Z").getTime();
-
-const setCurrentTimestamp = (timestamp: number) => {
-  const originalDateNow = Date.now;
-  Date.now = () => timestamp;
-  return () => {
-    Date.now = originalDateNow;
-  };
-};
 
 const meta = preview.meta({
   component: AppSidebar,
@@ -43,7 +30,13 @@ const meta = preview.meta({
       grouped: null,
     },
     secondaryNavItems: {
-      ungrouped: [{ title: "Settings", url: "/settings", icon: Settings }],
+      ungrouped: [
+        {
+          title: "Back to Rebyte",
+          url: "https://app.rebyte.ai",
+          icon: ArrowLeft,
+        },
+      ],
       grouped: null,
     },
     user: {
@@ -54,23 +47,12 @@ const meta = preview.meta({
     userMenuItems: [
       {
         type: "link",
-        name: "Account Settings",
-        href: "/account/settings",
+        name: "Back to Rebyte",
+        href: "https://app.rebyte.ai",
       },
       { type: "action", name: "Sign out", onClick: fn() },
     ] satisfies AppSidebarProps["userMenuItems"],
     isMobile: false,
-    logo: {},
-    versionState: {
-      deployment: "cloud",
-    } satisfies VersionState,
-    showDemoBadge: false,
-    v4UpgradeUiEnabled: true,
-    notificationState: {
-      dismissedIds: [],
-      onDismiss: fn(),
-      onLinkClick: fn(),
-    } satisfies NotificationState,
     organization: null,
     project: null,
     organizations: null,
@@ -115,111 +97,6 @@ const SidebarStory = ({
 
 export const Default = meta.story({});
 
-export const CurrentOpenSource = meta.story({
-  args: {
-    versionState: {
-      deployment: "self-hosted",
-      plan: "oss",
-      release: { status: "current" },
-      migration: { status: "idle" },
-    },
-  },
-});
-
-export const UpdateAvailable = meta.story({
-  args: {
-    versionState: {
-      deployment: "self-hosted",
-      plan: "self-hosted:pro",
-      release: {
-        status: "update-available",
-        updateType: "minor",
-        latestRelease: "3.128.0",
-      },
-      migration: { status: "idle" },
-    },
-  },
-});
-
-export const MigrationInProgress = meta.story({
-  args: {
-    versionState: {
-      deployment: "self-hosted",
-      plan: "self-hosted:enterprise",
-      release: { status: "current" },
-      migration: { status: "in-progress", phase: "running" },
-    },
-  },
-});
-
-export const UpdateDuringMigration = meta.story({
-  args: {
-    versionState: {
-      deployment: "self-hosted",
-      plan: "self-hosted:enterprise",
-      release: {
-        status: "update-available",
-        updateType: "major",
-        latestRelease: "4.0.0",
-      },
-      migration: { status: "in-progress", phase: "pending" },
-    },
-  },
-});
-
-export const LaunchWeekStack = meta.story({
-  beforeEach: () => setCurrentTimestamp(duringLaunchWeek),
-  args: {
-    v4UpgradeUiEnabled: false,
-    notificationState: {
-      dismissedIds: [],
-      onDismiss: fn(),
-      onLinkClick: fn(),
-    } satisfies NotificationState,
-  },
-});
-
-export const LatestLaunchWeek = meta.story({
-  beforeEach: () => setCurrentTimestamp(duringLaunchWeek),
-  args: {
-    v4UpgradeUiEnabled: false,
-    notificationState: {
-      dismissedIds: launchWeekNotificationIds.slice(0, 4),
-      onDismiss: fn(),
-      onLinkClick: fn(),
-    } satisfies NotificationState,
-  },
-});
-
-export const GitHubStar = meta.story({
-  name: "(Test) GitHub star",
-  args: {
-    v4UpgradeUiEnabled: false,
-    notificationState: {
-      dismissedIds: launchWeekNotificationIds,
-      onDismiss: fn(),
-      onLinkClick: fn(),
-    } satisfies NotificationState,
-  },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByAltText("Langfuse GitHub stars")).toHaveAttribute(
-      "src",
-      "https://img.shields.io/github/stars/langfuse/langfuse?label=langfuse&style=social",
-    );
-  },
-});
-
-export const AllNotificationsDismissed = meta.story({
-  args: {
-    v4UpgradeUiEnabled: false,
-    notificationState: {
-      dismissedIds: [...launchWeekNotificationIds, "github-star"],
-      onDismiss: fn(),
-      onLinkClick: fn(),
-    } satisfies NotificationState,
-  },
-});
-
 export const MobileNavigation = meta.story({
   args: {
     isMobile: true,
@@ -259,17 +136,11 @@ export const Collapsed = meta.story({
 });
 
 export const WithPageChrome = meta.story({
-  args: {
-    showDemoBadge: true,
-  },
   render: (args) => <SidebarStory open args={args} showPageChrome />,
 });
 
 export const ChromeRowAlignment = meta.story({
   name: "(Test) Chrome Row Aligns With Page Header",
-  args: {
-    showDemoBadge: true,
-  },
   render: (args) => <SidebarStory open args={args} showPageChrome />,
   play: async ({ canvas }) => {
     const rows = canvas.getAllByTestId(APP_SHELL_CHROME_ROW_TEST_ID);

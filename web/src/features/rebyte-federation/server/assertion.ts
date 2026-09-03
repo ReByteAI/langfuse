@@ -55,8 +55,20 @@ export const isRebyteFederatedSignInAllowed = ({
   claims: RebyteFederationClaims | undefined;
 }) =>
   !federationEnabled ||
-  provider !== "custom" ||
-  (claims !== undefined && claims.clerkUserId === providerAccountId);
+  (provider === "custom" &&
+    claims !== undefined &&
+    claims.clerkUserId === providerAccountId);
+
+export const selectRebyteFederationProviders = <T extends { id: string }>({
+  federationEnabled,
+  providers,
+}: {
+  federationEnabled: boolean;
+  providers: T[];
+}): T[] =>
+  federationEnabled
+    ? providers.filter((provider) => provider.id === "custom")
+    : providers;
 
 export const signRebyteFederationAssertion = (
   claims: RebyteFederationClaims,

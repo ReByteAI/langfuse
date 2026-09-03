@@ -10,7 +10,6 @@ import {
 import { useReadPath } from "@/src/features/events/hooks/useReadPath";
 import ObservationsEventsTable from "@/src/features/events/components/EventsTable";
 import { useQueryProject } from "@/src/features/projects/hooks";
-import { V4MigrationDelayBadge } from "@/src/features/v4-migration/V4MigrationDelayBadge";
 
 export default function Traces() {
   const router = useRouter();
@@ -45,8 +44,7 @@ export default function Traces() {
           title: "Tracing",
           help: {
             description:
-              "A trace represents a single function/api invocation. Traces contain observations. See [docs](https://langfuse.com/docs/observability/data-model) to learn more.",
-            href: "https://langfuse.com/docs/observability/data-model",
+              "A trace represents a single agent run and contains its observations.",
           },
         }}
         scrollable
@@ -60,25 +58,9 @@ export default function Traces() {
     <Page
       headerProps={{
         title: "Tracing",
-        titleBadges: <V4MigrationDelayBadge page="traces" />,
         help: {
-          description: (
-            <>
-              A trace represents a single function/api invocation. Traces
-              contain observations. See{" "}
-              <a
-                href="https://langfuse.com/docs/observability/data-model"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="decoration-primary/30 hover:decoration-primary underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                docs
-              </a>{" "}
-              to learn more.
-            </>
-          ),
-          href: "https://langfuse.com/docs/observability/data-model",
+          description:
+            "A trace represents a single agent run and contains its observations.",
         },
         tabsProps:
           isV4 || !isResolved
