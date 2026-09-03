@@ -16,6 +16,7 @@ import { PeekHeader } from "@/src/components/table/peek/PeekHeader";
 import { usePeekPanelState } from "@/src/components/table/peek/usePeekPanelState";
 import { shouldIgnoreOutsideInteraction } from "@/src/utils/outside-interaction";
 import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
+import { InAppAiAgentPeekHeaderButton } from "@/src/components/nav/in-app-ai-agent-button";
 
 // Peek view-mode URL param (also cleared by usePeekNavigation on close). When
 // `expanded`, the desktop peek widens to viewport − sidebar — shareable + back-able.
@@ -280,6 +281,7 @@ function TablePeekViewComponent(props: TablePeekViewProps) {
             }
       }
       openInNewTab={openInNewTab}
+      extraPinned={<InAppAiAgentPeekHeaderButton />}
       onClose={props.closePeek}
     />
   );
