@@ -11,6 +11,12 @@ import {
   signRebyteRevocationAssertion,
   verifyRebyteRevocationAssertion,
 } from "@/src/features/rebyte-federation/server/revocation";
+import {
+  signRebyteIngestionAssertion,
+  sha256RebyteIngestionBody,
+  verifyRebyteIngestionAssertion,
+  verifyRebyteIngestionBody,
+} from "@/src/features/rebyte-federation/server/ingestion";
 
 const secret = "a".repeat(64);
 
@@ -186,5 +192,79 @@ describe("Rebyte federation assertion", () => {
     expect(() =>
       verifyRebyteRevocationAssertion(token, secret, 1_800_000_061),
     ).toThrow("Expired Rebyte revocation assertion");
+  });
+
+  it("binds trace ingestion to one tenant and a dedicated audience", () => {
+    const body = Buffer.from('{"resourceSpans":[]}');
+    const claims = {
+      version: 1 as const,
+      issuer: "rebyte" as const,
+      audience: "langfuse" as const,
+      action: "ingest-otel-traces" as const,
+      accountId: validClaims.accountId,
+      contentType: "application/x-protobuf" as const,
+      bodySha256: sha256RebyteIngestionBody(body),
+      issuedAt: validClaims.issuedAt,
+      expiresAt: validClaims.expiresAt,
+      nonce: crypto.randomUUID(),
+    };
+    const token = signRebyteIngestionAssertion(claims, secret);
+
+    expect(
+      verifyRebyteIngestionAssertion(token, secret, 1_800_000_030),
+    ).toEqual(claims);
+    expect(() =>
+      verifyRebyteIngestionBody(body, claims.bodySha256),
+    ).not.toThrow();
+    expect(() =>
+      verifyRebyteIngestionBody(
+        Buffer.from('{"resourceSpans":[{}]}'),
+        claims.bodySha256,
+      ),
+    ).toThrow("Invalid Rebyte ingestion body");
+    expect(() =>
+      verifyRebyteIngestionAssertion(token, secret, 1_800_000_061),
+    ).toThrow("Expired Rebyte ingestion assertion");
+
+    const launchToken = signRebyteFederationAssertion(validClaims, secret);
+    expect(() =>
+      verifyRebyteIngestionAssertion(launchToken, secret, 1_800_000_030),
+    ).toThrow("Invalid Rebyte ingestion assertion");
+  });
+
+  it("rejects a tampered ingestion tenant binding", () => {
+    const token = signRebyteIngestionAssertion(
+      {
+        version: 1,
+        issuer: "rebyte",
+        audience: "langfuse",
+        action: "ingest-otel-traces",
+        accountId: validClaims.accountId,
+        contentType: "application/x-protobuf",
+        bodySha256: sha256RebyteIngestionBody(
+          Buffer.from('{"resourceSpans":[]}'),
+        ),
+        issuedAt: validClaims.issuedAt,
+        expiresAt: validClaims.expiresAt,
+        nonce: crypto.randomUUID(),
+      },
+      secret,
+    );
+    const [payload, signature] = token.split(".");
+    const decoded = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    );
+    decoded.accountId = "org_other";
+    const tamperedPayload = Buffer.from(JSON.stringify(decoded)).toString(
+      "base64url",
+    );
+
+    expect(() =>
+      verifyRebyteIngestionAssertion(
+        `${tamperedPayload}.${signature}`,
+        secret,
+        1_800_000_030,
+      ),
+    ).toThrow("Invalid Rebyte ingestion assertion");
   });
 });

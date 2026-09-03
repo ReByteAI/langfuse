@@ -16,6 +16,49 @@ export const getRebyteFederationIds = (accountId: string) => ({
   projectId: deterministicId("rebyte-project", accountId),
 });
 
+export const ensureRebyteOrganizationProject = async ({
+  accountId,
+  organizationName,
+}: {
+  accountId: string;
+  organizationName?: string;
+}) => {
+  const { organizationId, projectId } = getRebyteFederationIds(accountId);
+
+  await prisma.$transaction(async (tx) => {
+    const existingProject = await tx.project.findUnique({
+      where: { id: projectId },
+      select: { orgId: true },
+    });
+    if (existingProject && existingProject.orgId !== organizationId) {
+      throw new Error("Rebyte project tenant binding conflict");
+    }
+
+    await tx.organization.upsert({
+      where: { id: organizationId },
+      update: organizationName ? { name: organizationName } : {},
+      create: {
+        id: organizationId,
+        name: organizationName ?? "Rebyte organization",
+        metadata: { source: "rebyte", accountId },
+      },
+    });
+
+    await tx.project.upsert({
+      where: { id: projectId },
+      update: { name: "Agents", deletedAt: null },
+      create: {
+        id: projectId,
+        orgId: organizationId,
+        name: "Agents",
+        metadata: { source: "rebyte", accountId },
+      },
+    });
+  });
+
+  return { organizationId, projectId };
+};
+
 export const ensureRebyteOrganizationAccess = async ({
   claims,
   langfuseUserId,
@@ -36,32 +79,12 @@ export const ensureRebyteOrganizationAccess = async ({
     throw new Error("Rebyte identity does not match the Langfuse session");
   }
 
-  const { organizationId, projectId } = getRebyteFederationIds(
-    claims.accountId,
-  );
+  const { organizationId, projectId } = await ensureRebyteOrganizationProject({
+    accountId: claims.accountId,
+    organizationName: claims.organizationName,
+  });
 
   await prisma.$transaction(async (tx) => {
-    await tx.organization.upsert({
-      where: { id: organizationId },
-      update: { name: claims.organizationName },
-      create: {
-        id: organizationId,
-        name: claims.organizationName,
-        metadata: { source: "rebyte" },
-      },
-    });
-
-    await tx.project.upsert({
-      where: { id: projectId },
-      update: { name: "Agents", deletedAt: null },
-      create: {
-        id: projectId,
-        orgId: organizationId,
-        name: "Agents",
-        metadata: { source: "rebyte" },
-      },
-    });
-
     await tx.organizationMembership.upsert({
       where: {
         orgId_userId: {
