@@ -271,6 +271,7 @@ export const env = createEnv({
       .enum(["true", "false"])
       .optional()
       .default("false"),
+    REBYTE_FEDERATION_SECRET: z.string().min(32).optional(),
     AUTH_WORKOS_CLIENT_ID: z.string().optional(),
     AUTH_WORKOS_CLIENT_SECRET: z.string().optional(),
     AUTH_WORKOS_ALLOW_ACCOUNT_LINKING: z.enum(["true", "false"]).optional(),
@@ -904,6 +905,7 @@ export const env = createEnv({
       process.env.AUTH_CUSTOM_ALLOW_ACCOUNT_LINKING,
     AUTH_CUSTOM_ID_TOKEN: process.env.AUTH_CUSTOM_ID_TOKEN,
     AUTH_CUSTOM_FETCH_USERINFO: process.env.AUTH_CUSTOM_FETCH_USERINFO,
+    REBYTE_FEDERATION_SECRET: process.env.REBYTE_FEDERATION_SECRET,
     AUTH_WORKOS_CLIENT_ID: process.env.AUTH_WORKOS_CLIENT_ID,
     AUTH_WORKOS_CLIENT_SECRET: process.env.AUTH_WORKOS_CLIENT_SECRET,
     AUTH_WORKOS_ALLOW_ACCOUNT_LINKING:

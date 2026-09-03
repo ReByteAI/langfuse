@@ -80,6 +80,10 @@ import {
   isV4UpgradeUiAvailable,
 } from "@/src/features/events/lib/v4Rollout";
 import { canCreateOrganizations } from "@/src/features/organizations/server/canCreateOrganizations";
+import {
+  isRebyteFederatedSignInAllowed,
+  type RebyteFederationClaims,
+} from "@/src/features/rebyte-federation/server/assertion";
 
 const staticProviders: Provider[] = [
   CredentialsProvider({
@@ -760,14 +764,14 @@ const createExtendedPrismaAdapter = (signupAttribution?: {
 /**
  * Options for NextAuth.js used to configure adapters, providers, callbacks, etc.
  *
- * @param signupAttribution - per-request marketing attribution (ad-platform
- * click ids) attached to the signup analytics event if the request results
- * in a new user. Only passed by the NextAuth API route.
+ * @param requestContext - request-bound signup attribution and, when enabled,
+ * a verified Rebyte launch identity. Only passed by the NextAuth API route.
  *
  * @see https://next-auth.js.org/configuration/options
  */
-export async function getAuthOptions(signupAttribution?: {
+export async function getAuthOptions(requestContext?: {
   adClickIds?: AdClickIds;
+  rebyteFederationClaims?: RebyteFederationClaims;
 }): Promise<NextAuthOptions> {
   let dynamicSsoProviders: Provider[] = [];
   try {
@@ -1023,6 +1027,20 @@ export async function getAuthOptions(signupAttribution?: {
       },
       async signIn({ user, account, profile }) {
         return instrumentAsync({ name: "next-auth-sign-in" }, async () => {
+          if (
+            !isRebyteFederatedSignInAllowed({
+              federationEnabled: Boolean(env.REBYTE_FEDERATION_SECRET),
+              provider: account?.provider,
+              providerAccountId: account?.providerAccountId,
+              claims: requestContext?.rebyteFederationClaims,
+            })
+          ) {
+            logger.warn(
+              "Rejected custom OIDC sign-in without matching Rebyte federation access",
+            );
+            return false;
+          }
+
           // Block sign in without valid user.email
           const email = user.email?.toLowerCase();
           if (!email) {
@@ -1135,7 +1153,7 @@ export async function getAuthOptions(signupAttribution?: {
         });
       },
     },
-    adapter: createExtendedPrismaAdapter(signupAttribution),
+    adapter: createExtendedPrismaAdapter(requestContext),
     providers,
     pages: {
       signIn: `${env.NEXT_PUBLIC_BASE_PATH ?? ""}/auth/sign-in`,
