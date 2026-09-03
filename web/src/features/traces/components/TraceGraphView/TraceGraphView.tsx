@@ -19,6 +19,10 @@ export function TraceGraphView() {
   const { agentGraphData, isLoading } = useTraceGraphData();
   const activeObservationIds = useActiveObservationIds();
   const { graphViewMode, setGraphViewMode } = useViewPreferences();
+  const isSessionGraph = agentGraphData.some(
+    (observation) => observation.traceId,
+  );
+  const effectiveGraphViewMode = isSessionGraph ? "expanded" : graphViewMode;
   const capture = usePostHogClientCapture();
   const analyticsDimensions = useTraceAnalyticsDimensions();
   // Optional (null on desktop): jump to the Info tab when a canvas click selects
@@ -31,11 +35,11 @@ export function TraceGraphView() {
   const handleObservationSelect = useCallback(() => {
     capture("trace_detail:node_selected", {
       source: "graph",
-      graphViewMode,
+      graphViewMode: effectiveGraphViewMode,
       ...analyticsDimensions,
     });
     mobileLayout?.switchToInfoTab();
-  }, [capture, graphViewMode, analyticsDimensions, mobileLayout]);
+  }, [capture, effectiveGraphViewMode, analyticsDimensions, mobileLayout]);
   const handleViewModeChange = useCallback(
     (mode: GraphViewMode) => {
       // Clicking the already-active segment is a no-op — don't count it.
@@ -66,8 +70,8 @@ export function TraceGraphView() {
     <TraceGraphViewComponent
       agentGraphData={agentGraphData}
       activeObservationIds={activeObservationIds}
-      viewMode={graphViewMode}
-      onViewModeChange={handleViewModeChange}
+      viewMode={effectiveGraphViewMode}
+      onViewModeChange={isSessionGraph ? undefined : handleViewModeChange}
       onObservationSelect={handleObservationSelect}
     />
   );
