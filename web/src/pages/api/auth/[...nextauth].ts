@@ -2,6 +2,8 @@ import { getAuthOptions } from "@/src/server/auth";
 import { getAdClickIdsFromRequest } from "@/src/features/auth/lib/signupAttribution";
 import { getCookieName } from "@/src/server/utils/cookies";
 import { isValidCallbackUrl } from "@/src/server/utils/nextAuthCallbackUrl";
+import { verifyRebyteFederationAssertion } from "@/src/features/rebyte-federation/server/assertion";
+import { readRebyteFederationCookie } from "@/src/features/rebyte-federation/server/cookie";
 import { env } from "@/src/env.mjs";
 import { logger } from "@langfuse/shared/src/server";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -169,8 +171,20 @@ export default async function auth(req: NextApiRequest, res: NextApiResponse) {
   // Do whatever you want here, before the request is passed down to `NextAuth`
   // Pass Google Ads click attribution from first-party cookies so that new
   // SSO signups can be attributed to ad clicks (cloud_signup_complete event).
+  const rebyteFederationClaims = (() => {
+    const secret = env.REBYTE_FEDERATION_SECRET;
+    const assertion = readRebyteFederationCookie(req.cookies);
+    if (!secret || !assertion) return undefined;
+    try {
+      return verifyRebyteFederationAssertion(assertion, secret);
+    } catch {
+      return undefined;
+    }
+  })();
+
   const authOptions = await getAuthOptions({
     adClickIds: getAdClickIdsFromRequest(req),
+    rebyteFederationClaims,
   });
   // https://github.com/nextauthjs/next-auth/issues/2408#issuecomment-1382629234
   // for api routes, we need to call the headers in the api route itself

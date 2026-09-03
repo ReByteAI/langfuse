@@ -80,6 +80,11 @@ import {
   isV4UpgradeUiAvailable,
 } from "@/src/features/events/lib/v4Rollout";
 import { canCreateOrganizations } from "@/src/features/organizations/server/canCreateOrganizations";
+import {
+  isRebyteFederatedSignInAllowed,
+  selectRebyteFederationProviders,
+  type RebyteFederationClaims,
+} from "@/src/features/rebyte-federation/server/assertion";
 
 const staticProviders: Provider[] = [
   CredentialsProvider({
@@ -760,23 +765,31 @@ const createExtendedPrismaAdapter = (signupAttribution?: {
 /**
  * Options for NextAuth.js used to configure adapters, providers, callbacks, etc.
  *
- * @param signupAttribution - per-request marketing attribution (ad-platform
- * click ids) attached to the signup analytics event if the request results
- * in a new user. Only passed by the NextAuth API route.
+ * @param requestContext - request-bound signup attribution and, when enabled,
+ * a verified Rebyte launch identity. Only passed by the NextAuth API route.
  *
  * @see https://next-auth.js.org/configuration/options
  */
-export async function getAuthOptions(signupAttribution?: {
+export async function getAuthOptions(requestContext?: {
   adClickIds?: AdClickIds;
+  rebyteFederationClaims?: RebyteFederationClaims;
 }): Promise<NextAuthOptions> {
+  const federationEnabled = Boolean(env.REBYTE_FEDERATION_SECRET);
   let dynamicSsoProviders: Provider[] = [];
-  try {
-    dynamicSsoProviders = await loadSsoProviders();
-  } catch (e) {
-    logger.error("Error loading dynamic SSO providers", e);
-    traceException(e);
+  // A federated deployment is entered only through the verified Rebyte launch
+  // flow. Avoid exposing credentials or tenant-configured providers there.
+  if (!federationEnabled) {
+    try {
+      dynamicSsoProviders = await loadSsoProviders();
+    } catch (e) {
+      logger.error("Error loading dynamic SSO providers", e);
+      traceException(e);
+    }
   }
-  const providers = [...staticProviders, ...dynamicSsoProviders];
+  const providers = selectRebyteFederationProviders({
+    federationEnabled,
+    providers: [...staticProviders, ...dynamicSsoProviders],
+  });
 
   const data: NextAuthOptions = {
     logger: nextAuthLogger,
@@ -942,9 +955,9 @@ export async function getAuthOptions(signupAttribution?: {
                             )
                           : true
                         : false,
-                    canCreateOrganizations: canCreateOrganizations(
-                      dbUser.email,
-                    ),
+                    canCreateOrganizations: federationEnabled
+                      ? false
+                      : canCreateOrganizations(dbUser.email),
                     organizations: dbUser.organizationMemberships.map(
                       (orgMembership) => {
                         const parsedCloudConfig = CloudConfigSchema.safeParse(
@@ -1023,6 +1036,20 @@ export async function getAuthOptions(signupAttribution?: {
       },
       async signIn({ user, account, profile }) {
         return instrumentAsync({ name: "next-auth-sign-in" }, async () => {
+          if (
+            !isRebyteFederatedSignInAllowed({
+              federationEnabled,
+              provider: account?.provider,
+              providerAccountId: account?.providerAccountId,
+              claims: requestContext?.rebyteFederationClaims,
+            })
+          ) {
+            logger.warn(
+              "Rejected custom OIDC sign-in without matching Rebyte federation access",
+            );
+            return false;
+          }
+
           // Block sign in without valid user.email
           const email = user.email?.toLowerCase();
           if (!email) {
@@ -1135,7 +1162,7 @@ export async function getAuthOptions(signupAttribution?: {
         });
       },
     },
-    adapter: createExtendedPrismaAdapter(signupAttribution),
+    adapter: createExtendedPrismaAdapter(requestContext),
     providers,
     pages: {
       signIn: `${env.NEXT_PUBLIC_BASE_PATH ?? ""}/auth/sign-in`,

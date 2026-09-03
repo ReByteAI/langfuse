@@ -70,15 +70,6 @@ const sidebarArgs = {
     },
   ],
   isMobile: false,
-  logo: {},
-  versionState: { deployment: "cloud" as const },
-  showDemoBadge: false,
-  v4UpgradeUiEnabled: true,
-  notificationState: {
-    dismissedIds: [] as string[],
-    onDismiss: vi.fn(),
-    onLinkClick: vi.fn(),
-  },
   organization: null,
   project: null,
   organizations: null,
@@ -96,6 +87,14 @@ const Shell = () => (
 );
 
 describe("app shell chrome row", () => {
+  it("uses the Rebyte product brand in the application shell", () => {
+    render(<Shell />);
+
+    expect(screen.getByText("Rebyte")).toBeInTheDocument();
+    expect(screen.getByLabelText("Rebyte home")).toBeInTheDocument();
+    expect(screen.queryByText("Langfuse")).not.toBeInTheDocument();
+  });
+
   it("puts the sidebar and page-header dividers on the same min-h-11 row", () => {
     const { container } = render(<Shell />);
 

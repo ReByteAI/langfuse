@@ -51,6 +51,7 @@ import { cn } from "@/src/utils/tailwind";
 import { useLangfuseCloudRegion } from "@/src/features/organizations/hooks";
 import { getSafeRedirectPath } from "@/src/utils/redirect";
 import { Spinner } from "@/src/components/layouts/spinner";
+import { REBYTE_APP_URL, REBYTE_PRODUCT_NAME } from "@/src/constants/rebyte";
 
 // The shared, intentionally-public demo identity created by the seed script
 // (packages/shared/scripts/seeder/seed-postgres.ts) and posted in every
@@ -111,6 +112,15 @@ export type PageProps = {
 // Also used in src/pages/auth/sign-up.tsx
 
 export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
+  if (env.REBYTE_FEDERATION_SECRET) {
+    return {
+      redirect: {
+        destination: REBYTE_APP_URL,
+        permanent: false,
+      },
+    };
+  }
+
   const sso: boolean = await isAnySsoConfigured();
   return {
     props: {
@@ -861,7 +871,7 @@ export default function SignIn({
     return (
       <>
         <Head>
-          <title>Sign in | Langfuse</title>
+          <title>Sign in | {REBYTE_PRODUCT_NAME}</title>
         </Head>
         <Spinner message={`Signing in as ${PREVIEW_DEMO_USER_EMAIL}`} />
       </>
@@ -871,7 +881,7 @@ export default function SignIn({
   return (
     <>
       <Head>
-        <title>Sign in | Langfuse</title>
+        <title>Sign in | {REBYTE_PRODUCT_NAME}</title>
       </Head>
       <div className="flex flex-1 flex-col py-6 sm:min-h-full sm:justify-center sm:px-6 sm:py-12 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">

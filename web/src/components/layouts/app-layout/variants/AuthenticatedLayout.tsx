@@ -1,15 +1,10 @@
 /**
  * Authenticated layout variant
- * Full application layout with sidebar, navigation, support drawer, and payment banner
+ * Full application layout with sidebar, navigation, and payment banner
  * Used for all main application pages when user is authenticated
  */
 
-import {
-  useEffect,
-  useState,
-  type ComponentProps,
-  type PropsWithChildren,
-} from "react";
+import { useEffect, type ComponentProps, type PropsWithChildren } from "react";
 import Head from "next/head";
 import { useRouter, type NextRouter } from "next/router";
 import {
@@ -22,36 +17,17 @@ import { SidebarPresenceProvider } from "@/src/components/nav/sidebar-presence";
 import { Toaster } from "@/src/components/ui/sonner";
 import { Layer } from "@/src/components/ui/layer";
 import { TopBannerProvider } from "@/src/features/top-banner";
-import { VersionUpdateBanner } from "@/src/features/version-update";
 import { AppContentWithRightDrawer } from "../right-drawer/AppContentWithRightDrawer";
 import { ThemeToggle } from "@/src/features/theming/ThemeToggle";
-import {
-  getAvailableCloudRegionOptions,
-  getCloudRegionAuthUrl,
-} from "@/src/features/organizations/cloudRegions";
-import { useLangfuseCloudRegion } from "@/src/features/organizations/hooks";
 import type { Session } from "next-auth";
 import type { NavigationItem } from "@/src/components/layouts/utilities/routes";
 import type { RouteGroup } from "@/src/components/layouts/routes";
 import dynamic from "next/dynamic";
-import { ControlledFeaturePreviewModal } from "@/src/features/feature-previews/components/ControlledFeaturePreviewModal";
 import { InAppAgentWindowHost } from "@/src/features/in-app-agent/components/InAppAgentWindowHost";
-import {
-  useV4UpgradeUiEnabled,
-  useV4UpgradeUiFlag,
-} from "@/src/features/v4-migration/useV4UpgradeUiEnabled";
-import { useUiCustomization } from "@/src/ee/features/ui-customization/useUiCustomization";
-import { findCurrentInstance } from "@/src/ee/features/ui-customization/instanceLinks";
-import { api } from "@/src/utils/api";
-import { usePlan } from "@/src/features/entitlements/hooks";
-import { env } from "@/src/env.mjs";
-import useLocalStorage from "@/src/components/useLocalStorage";
-import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
 import { useSession } from "next-auth/react";
 import { useQueryProjectOrOrganization } from "@/src/features/projects/hooks";
 import { useHasOrganizationAccess } from "@/src/features/rbac/utils/checkOrganizationAccess";
-
-const DISMISSED_SIDEBAR_NOTIFICATIONS_KEY = "dismissed-sidebar-notifications";
+import { REBYTE_APP_URL, REBYTE_BRAND_NAME } from "@/src/constants/rebyte";
 
 const CommandMenu = dynamic(
   () =>
@@ -100,8 +76,6 @@ type AuthenticatedLayoutProps = PropsWithChildren<{
   metadata: {
     title: string;
     faviconPath: string;
-    favicon256Path: string;
-    appleTouchIconPath: string;
   };
   onSignOut: () => void;
 }>;
@@ -110,7 +84,6 @@ type AuthenticatedLayoutProps = PropsWithChildren<{
  * Full authenticated layout with all features:
  * - AppSidebar with navigation
  * - Payment banner (conditional)
- * - Support drawer
  * - Command menu (Cmd/Ctrl+K)
  * - Toast notifications
  * - Dynamic page metadata
@@ -122,14 +95,8 @@ export function AuthenticatedLayout({
   metadata,
   onSignOut,
 }: AuthenticatedLayoutProps) {
-  const { isLangfuseCloud, region: currentRegion } = useLangfuseCloudRegion();
-  const [featurePreviewOpen, setFeaturePreviewOpen] = useState(false);
   const router = useRouter();
   useProjectCookie(router);
-  const uiCustomization = useUiCustomization();
-  // Account-level entry: use the raw flag (same as account settings tabs), not
-  // project-scoped force-v3 suppression.
-  const showV4Migration = useV4UpgradeUiFlag();
 
   // Safe assertion: AuthenticatedLayout is only rendered after auth checks pass
   // in AppLayout, which guarantees session.user exists at this point
@@ -138,41 +105,6 @@ export function AuthenticatedLayout({
     // This should never happen due to guards in AppLayout, but TypeScript needs this
     return null;
   }
-
-  const regionMenuItems = getAvailableCloudRegionOptions(currentRegion).map(
-    (region) => ({
-      type: "action" as const,
-      name: region.name,
-      content: `${region.flag} ${region.name}`,
-      onClick: () => {
-        if (!region.rootUrl) return;
-        window.open(
-          getCloudRegionAuthUrl(region.rootUrl, user.email),
-          "_blank",
-          "noopener,noreferrer",
-        );
-      },
-    }),
-  );
-
-  // Self-hosted instance switcher (EE): configured via
-  // LANGFUSE_UI_INSTANCE_LINKS, delivered through the uiCustomization query.
-  const instanceLinks = uiCustomization?.instanceLinks ?? null;
-  const currentInstance = instanceLinks
-    ? findCurrentInstance(
-        instanceLinks,
-        typeof window !== "undefined" ? window.location.host : undefined,
-      )
-    : undefined;
-  const instanceMenuItems = (instanceLinks ?? []).map((link) => ({
-    type: "action" as const,
-    name: link.name,
-    onClick: () => {
-      window.open(link.url, "_blank", "noopener,noreferrer");
-    },
-  }));
-
-  const hasFeaturePreviews = isLangfuseCloud || user.v4BetaEnabled === true;
 
   // User navigation items for sidebar dropdown
   const sidebarUser = {
@@ -183,67 +115,15 @@ export function AuthenticatedLayout({
   const userMenuItems = [
     {
       type: "link" as const,
-      name: "Account Settings",
-      href: "/account/settings",
+      name: `Back to ${REBYTE_BRAND_NAME}`,
+      href: REBYTE_APP_URL,
     },
-    ...(showV4Migration
-      ? [
-          {
-            type: "link" as const,
-            name: "v4 Migration",
-            href: "/v4-migration",
-          },
-        ]
-      : []),
     {
       type: "action" as const,
       name: "Theme",
       onClick: () => {},
       content: <ThemeToggle />,
     },
-    ...(hasFeaturePreviews
-      ? [
-          {
-            type: "action" as const,
-            name: "Feature Preview",
-            onClick: () => setFeaturePreviewOpen(true),
-          },
-        ]
-      : []),
-    ...(isLangfuseCloud
-      ? [
-          {
-            type: "submenu" as const,
-            name: "Regions",
-            subItems: regionMenuItems,
-            content: (
-              <>
-                Regions
-                <div className="ml-2 inline-flex rounded bg-black/5 p-1 text-xs dark:bg-white/10">
-                  Current: {currentRegion}
-                </div>
-              </>
-            ),
-          },
-        ]
-      : []),
-    ...(instanceMenuItems.length > 0
-      ? [
-          {
-            type: "submenu" as const,
-            name: "Instances",
-            subItems: instanceMenuItems,
-            content: currentInstance ? (
-              <>
-                Instances
-                <div className="ml-2 inline-flex rounded bg-black/5 p-1 text-xs dark:bg-white/10">
-                  Current: {currentInstance.name}
-                </div>
-              </>
-            ) : undefined,
-          },
-        ]
-      : []),
     { type: "action" as const, name: "Sign out", onClick: onSignOut },
   ];
 
@@ -252,13 +132,6 @@ export function AuthenticatedLayout({
       <Head>
         <title>{metadata.title}</title>
         <link rel="icon" type="image/svg+xml" href={metadata.faviconPath} />
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="256x256"
-          href={metadata.favicon256Path}
-        />
-        <link rel="apple-touch-icon" href={metadata.appleTouchIconPath} />
       </Head>
 
       <TopBannerProvider>
@@ -267,19 +140,12 @@ export function AuthenticatedLayout({
             <div className="flex h-dvh w-full flex-col">
               <PaymentBanner />
               <PreviewDeploymentBanner />
-              <VersionUpdateBanner />
               <div className="pt-banner-offset flex min-h-0 flex-1">
                 <ConnectedAppSidebar
                   navItems={navigation.mainNavigation}
                   secondaryNavItems={navigation.secondaryNavigation}
                   user={sidebarUser}
                   userMenuItems={userMenuItems}
-                  isLangfuseCloud={isLangfuseCloud}
-                  routerProjectId={
-                    typeof router.query.projectId === "string"
-                      ? router.query.projectId
-                      : undefined
-                  }
                 />
                 {/* `min-w-0`, not a `100vw`-derived width: viewport units ignore
                     scrollbars, and a definite width also floors `min-width:
@@ -306,12 +172,6 @@ export function AuthenticatedLayout({
                   <InAppAgentWindowHost />
                 </SidebarInset>
               </div>
-              {hasFeaturePreviews ? (
-                <ControlledFeaturePreviewModal
-                  open={featurePreviewOpen}
-                  onOpenChange={setFeaturePreviewOpen}
-                />
-              ) : null}
             </div>
           </SidebarProvider>
         </SidebarPresenceProvider>
@@ -325,77 +185,19 @@ function ConnectedAppSidebar({
   secondaryNavItems,
   user,
   userMenuItems,
-  isLangfuseCloud,
-  routerProjectId,
 }: {
   navItems: GroupedNavigation;
   secondaryNavItems: GroupedNavigation;
   user: ComponentProps<typeof AppSidebar>["user"];
   userMenuItems: ComponentProps<typeof AppSidebar>["userMenuItems"];
-  isLangfuseCloud: boolean;
-  routerProjectId?: string;
 }) {
   const { isMobile } = useSidebar();
-  const uiCustomization = useUiCustomization();
-  const v4UpgradeUiEnabled = useV4UpgradeUiEnabled(routerProjectId);
-  const plan = usePlan();
-  const capture = usePostHogClientCapture();
   const session = useSession();
   const { organization, project } = useQueryProjectOrOrganization();
   const canCreateProjects = useHasOrganizationAccess({
     organizationId: organization?.id,
     scope: "projects:create",
   });
-  const [dismissedNotificationIds, setDismissedNotificationIds] =
-    useLocalStorage<string[]>(DISMISSED_SIDEBAR_NOTIFICATIONS_KEY, []);
-
-  const backgroundMigrationStatus = api.backgroundMigrations.status.useQuery(
-    undefined,
-    {
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      enabled: !isLangfuseCloud,
-      throwOnError: false,
-    },
-  );
-
-  const checkUpdate = api.public.checkUpdate.useQuery(undefined, {
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    enabled: !isLangfuseCloud,
-    throwOnError: false,
-  });
-
-  const selfHostedPlan =
-    plan === "self-hosted:pro" || plan === "self-hosted:enterprise"
-      ? plan
-      : "oss";
-
-  const versionState: ComponentProps<typeof AppSidebar>["versionState"] =
-    isLangfuseCloud
-      ? { deployment: "cloud" }
-      : {
-          deployment: "self-hosted",
-          plan: selfHostedPlan,
-          release: checkUpdate.data?.updateType
-            ? {
-                status: "update-available",
-                updateType: checkUpdate.data.updateType,
-                latestRelease: checkUpdate.data.latestRelease,
-              }
-            : { status: "current" },
-          migration:
-            backgroundMigrationStatus.data &&
-            backgroundMigrationStatus.data.status !== "FINISHED"
-              ? {
-                  status: "in-progress",
-                  phase: backgroundMigrationStatus.data.status.toLowerCase(),
-                }
-              : { status: "idle" },
-        };
-
   return (
     <AppSidebar
       navItems={navItems}
@@ -403,26 +205,6 @@ function ConnectedAppSidebar({
       user={user}
       userMenuItems={userMenuItems}
       isMobile={isMobile}
-      logo={{
-        lightModeHref: uiCustomization?.logoLightModeHref,
-        darkModeHref: uiCustomization?.logoDarkModeHref,
-      }}
-      versionState={versionState}
-      v4UpgradeUiEnabled={v4UpgradeUiEnabled}
-      notificationState={{
-        dismissedIds: dismissedNotificationIds,
-        onDismiss: (id) => {
-          capture("notification:dismiss_notification", {
-            notification_id: id,
-          });
-          setDismissedNotificationIds((current) => [...current, id]);
-        },
-        onLinkClick: (id) => {
-          capture("notification:click_link", {
-            notification_id: id,
-          });
-        },
-      }}
       organization={
         organization ? { id: organization.id, name: organization.name } : null
       }
@@ -432,12 +214,6 @@ function ConnectedAppSidebar({
         session.data?.user?.canCreateOrganizations ?? false
       }
       canCreateProjects={canCreateProjects}
-      showDemoBadge={Boolean(
-        env.NEXT_PUBLIC_DEMO_ORG_ID &&
-        env.NEXT_PUBLIC_DEMO_PROJECT_ID &&
-        routerProjectId === env.NEXT_PUBLIC_DEMO_PROJECT_ID &&
-        isLangfuseCloud,
-      )}
     />
   );
 }

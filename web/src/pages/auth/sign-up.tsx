@@ -34,6 +34,7 @@ import { captureUnknownError } from "@/src/utils/captureUnknownError";
 import { usePostHogClientCapture } from "@/src/features/posthog-analytics/usePostHogClientCapture";
 import useLocalStorage from "@/src/components/useLocalStorage";
 import { noUrlCheck, StringNoHTMLNonEmpty } from "@langfuse/shared";
+import { REBYTE_PRODUCT_NAME } from "@/src/constants/rebyte";
 
 // Use the same getServerSideProps function as src/pages/auth/sign-in.tsx
 export { getServerSideProps } from "@/src/pages/auth/sign-in";
@@ -407,7 +408,7 @@ function VerifiedSignupFlow({
     return (
       <>
         <Head>
-          <title>Verify your email | Langfuse</title>
+          <title>Verify your email | {REBYTE_PRODUCT_NAME}</title>
         </Head>
         <div className="flex flex-1 flex-col py-6 sm:min-h-full sm:justify-center sm:px-6 sm:py-12 lg:px-8">
           <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -549,7 +550,7 @@ function SignupPageShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Head>
-        <title>Sign up | Langfuse</title>
+        <title>Sign up | {REBYTE_PRODUCT_NAME}</title>
         <meta
           name="description"
           content="Create an account, no credit card required."

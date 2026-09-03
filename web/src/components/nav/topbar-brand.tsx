@@ -1,25 +1,21 @@
 /* eslint-disable @repo/no-style-props, @repo/no-null-render */
 import { cn } from "@/src/utils/tailwind";
 import Link from "next/link";
-import { env } from "@/src/env.mjs";
 import { useUiCustomization } from "@/src/ee/features/ui-customization/useUiCustomization";
-import { PlusIcon } from "lucide-react";
 import { LangfuseIcon } from "@/src/components/design-system/LangfuseIcon/LangfuseIcon";
 import { useHasAppSidebar } from "@/src/components/nav/sidebar-presence";
+import { REBYTE_BRAND_NAME } from "@/src/constants/rebyte";
 
 /**
- * Compact Langfuse brand mark for the top bar.
+ * Compact Rebyte brand mark for the top bar.
  *
- * The primary brand lives in the sidebar header. Once the sidebar goes
- * off-canvas (below `md`, where it collapses into a Sheet) nothing brands the
- * app, so the page header renders this compact mark instead — mirroring the
- * icon the sidebar itself shows when collapsed.
+ * The primary brand lives in the sidebar header. The page header renders this
+ * compact mark when the sidebar moves off-canvas.
  *
- * `variant="icon"` (default) renders just the Langfuse mark; `variant="wordmark"`
+ * `variant="icon"` (default) renders just the Rebyte mark; `variant="wordmark"`
  * renders the full logotype, for the centered brand in the mobile top bar.
  *
- * Respects the self-host UI-customization logo entitlement, same as
- * `LangfuseLogo`, and links to `/` like the sidebar logo.
+ * Respects the self-host UI-customization logo entitlement and links to `/`.
  */
 export const TopbarBrand = ({
   className,
@@ -34,20 +30,18 @@ export const TopbarBrand = ({
   const logoDark = uiCustomization?.logoDarkModeHref;
 
   // Only brand where a real sidebar exists to mirror. On the sidebar-less
-  // MinimalLayout (public/shared trace & session views) the page supplies its
-  // own "Sign in / Back to Langfuse" leadingControl, so an extra brand mark
-  // here would be redundant.
+  // MinimalLayout (public/shared trace & session views) supplies its own
+  // leading control, so an extra brand mark here would be redundant.
   if (!hasAppSidebar) return null;
 
   return (
     <Link
       href="/"
-      aria-label="Langfuse home"
+      aria-label={`${REBYTE_BRAND_NAME} home`}
       className={cn("flex shrink-0 items-center gap-1", className)}
     >
       {logoLight && logoDark ? (
-        // Custom logo (max aspect ratio 1:3 per docs) + the Langfuse mark,
-        // matching LangfuseLogo's customized layout.
+        // Custom logo (max aspect ratio 1:3 per docs).
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -61,23 +55,13 @@ export const TopbarBrand = ({
             alt="Logo"
             className="hidden max-h-5 max-w-16 dark:block"
           />
-          <PlusIcon size={8} className="text-muted-foreground" />
-          <LangfuseIcon size={16} />
         </>
       ) : variant === "wordmark" ? (
         <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            className="max-h-5 max-w-24 dark:hidden"
-            src={`${env.NEXT_PUBLIC_BASE_PATH ?? ""}/wordart-black.svg`}
-            alt="Langfuse Logo"
-          />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            className="hidden max-h-5 max-w-24 dark:block"
-            src={`${env.NEXT_PUBLIC_BASE_PATH ?? ""}/wordart-white.svg`}
-            alt="Langfuse Logo"
-          />
+          <LangfuseIcon size={16} />
+          <span className="text-[15px] tracking-[-0.01em]">
+            {REBYTE_BRAND_NAME}
+          </span>
         </>
       ) : (
         <LangfuseIcon size={28} />
