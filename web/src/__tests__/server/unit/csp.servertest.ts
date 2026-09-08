@@ -71,13 +71,24 @@ describe("Content Security Policy", () => {
     );
   });
 
+  it("allows every parent when embedding is configured with a wildcard", () => {
+    expect(getCsp(undefined, "*")).toContain("frame-ancestors *;");
+    expect(
+      getHeaders(undefined, "*").some(
+        (header) => header.key === "x-frame-options",
+      ),
+    ).toBe(false);
+  });
+
   it.each([
-    "*",
     "https://*.rebyte.ai",
     "https://app.rebyte.ai/path",
     "https://user:password@app.rebyte.ai",
     "https://app.rebyte.ai; frame-ancestors *",
     "http://app.rebyte.ai",
+    "https://app.rebyte.ai:*",
+    "http://localhost.evil.test:*",
+    "http://192.168.1.1:*",
   ])("rejects an unsafe or ambiguous parent origin: %s", (origin) => {
     expect(() => getHeaders(undefined, origin)).toThrow();
   });

@@ -22,7 +22,8 @@ export function getEmbedParentOrigin(
   } catch {
     return;
   }
-  return allowedOrigins.split(",").includes(query.parentOrigin)
+  const parents = allowedOrigins.split(",");
+  return parents.includes("*") || parents.includes(query.parentOrigin)
     ? query.parentOrigin
     : undefined;
 }

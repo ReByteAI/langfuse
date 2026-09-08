@@ -21,6 +21,65 @@ afterEach(() => {
 });
 
 describe("Rebyte observability embed boundary", () => {
+  it("allows any HTTP or HTTPS parent when configured with a wildcard", () => {
+    const allowed = "*";
+    for (const origin of [
+      "http://localhost:3332",
+      "http://localhost:5173",
+      "http://localhost",
+      "https://localhost:4443",
+      "http://127.0.0.1:8080",
+      "http://[::1]:3332",
+      "http://192.168.1.1:3332",
+      "https://another-app.example.com",
+    ]) {
+      expect(
+        getEmbedParentOrigin({ ...query, parentOrigin: origin }, allowed),
+      ).toBe(origin);
+      expect(
+        getEmbedParentOrigin({ ...query, parentOrigin: origin }, parentOrigin),
+      ).toBeUndefined();
+    }
+    for (const origin of [
+      "http://localhost:3332/path",
+      "http://user@localhost:3332",
+      "http://localhost:*",
+      "http://localhost:3332/",
+      "null",
+      "*",
+      "file:///tmp/index.html",
+      "javascript:alert(1)",
+    ]) {
+      expect(
+        getEmbedParentOrigin({ ...query, parentOrigin: origin }, allowed),
+      ).toBeUndefined();
+    }
+  });
+
+  it("sends local status to the concrete parent origin rather than the wildcard", () => {
+    const origin = "http://localhost:3332";
+    vi.stubEnv("NEXT_PUBLIC_REBYTE_EMBED_ALLOWED_ORIGINS", "*");
+    const postMessage = vi.fn();
+    vi.stubGlobal("window", {
+      parent: { postMessage },
+      location: {
+        pathname: "/project/project-1/traces",
+        search: `?embed=1&parentOrigin=${encodeURIComponent(origin)}`,
+      },
+    });
+    postObservabilityStatus("ready");
+    expect(postMessage).toHaveBeenCalledWith(
+      { type: "rebyte:observability", status: "ready", projectId: "project-1" },
+      origin,
+    );
+    expect(
+      withObservabilityEmbedParams("/project/project-1/traces/trace-1", {
+        ...query,
+        parentOrigin: origin,
+      }),
+    ).toContain("parentOrigin=http%3A%2F%2Flocalhost%3A3332");
+  });
+
   it("requires an exact configured parent and an explicit embed flag", () => {
     expect(getEmbedParentOrigin(query, parentOrigin)).toBe(parentOrigin);
     for (const value of [

@@ -6,17 +6,22 @@ an example deployment hostname, not an automatically provisioned service.
 
 ## Build and hosting settings
 
-Set `REBYTE_EMBED_ALLOWED_ORIGINS` to the exact parent origins, separated by
-commas. An empty value disables embedding. Wildcards, URL paths, credentials,
-and non-local HTTP origins are rejected. HTTP localhost/loopback origins are
-supported for local development.
+Set `REBYTE_EMBED_ALLOWED_ORIGINS="*"` to allow any website to embed the app,
+including localhost on any port. The Rebyte build workflow uses this setting.
+Login and project access checks still apply. Parent messages use the actual
+HTTP/HTTPS parent origin, never `*` as the message destination.
+
+For restricted deployments, a comma-separated list of exact HTTPS parent
+origins is also supported, plus exact HTTP localhost/loopback origins for
+development. Empty disables embedding. Paths, credentials, and partial
+wildcards such as `https://*.example.com` are rejected.
 
 For a source build, set the variable when running `pnpm run build`. For Docker,
 pass it as a build argument from the repository root:
 
 ```sh
 docker build -f web/Dockerfile \
-  --build-arg REBYTE_EMBED_ALLOWED_ORIGINS=https://app.rebyte.ai \
+  --build-arg 'REBYTE_EMBED_ALLOWED_ORIGINS=*' \
   -t rebyte-observability:embed .
 ```
 
@@ -63,7 +68,8 @@ identity providers can block framing their login pages.
 
 The traces list and trace detail routes support `embed=1` together with
 `parentOrigin=https://app.rebyte.ai`. The parent origin must match an entry in
-`REBYTE_EMBED_ALLOWED_ORIGINS` exactly. The same validated build-time value is
+`REBYTE_EMBED_ALLOWED_ORIGINS` exactly, unless the allowlist contains `*`.
+The same validated build-time value is
 compiled into the browser as `NEXT_PUBLIC_REBYTE_EMBED_ALLOWED_ORIGINS`; do not
 configure a separate browser allowlist.
 
@@ -127,8 +133,9 @@ restrictions.
 
 Inspect the headers of an HTML page, then open the iframe from the configured
 Rebyte origin with an authenticated test user. Confirm the project loads and
-navigation works. Repeat from an origin absent from the list and confirm the
-browser blocks the frame. Check login separately in a top-level tab.
+navigation works. With `*`, also verify a localhost parent on a different port.
+For restricted allowlists, repeat from an origin absent from the list and
+confirm the browser blocks the frame. Check login separately in a top-level tab.
 
 References: [CSP frame-ancestors](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/frame-ancestors),
 [SameSite cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie#samesitesamesite-value).

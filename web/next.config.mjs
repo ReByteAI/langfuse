@@ -48,9 +48,10 @@ const embedAllowedOrigins = (env.REBYTE_EMBED_ALLOWED_ORIGINS ?? "")
   .map((origin) => origin.trim())
   .filter(Boolean)
   .map((origin) => {
+    if (origin === "*") return origin;
     const invalidOrigin = () => {
       throw new Error(
-        "REBYTE_EMBED_ALLOWED_ORIGINS requires exact HTTPS origins without paths, credentials, or wildcards (HTTP is allowed only for localhost).",
+        "REBYTE_EMBED_ALLOWED_ORIGINS requires '*' or exact HTTPS origins without paths, credentials, or partial wildcards (HTTP is allowed only for localhost).",
       );
     };
     if (
