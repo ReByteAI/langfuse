@@ -1,0 +1,64 @@
+name: Build Rebyte Observability ARM64
+
+on:
+  push:
+    branches: [rebyte-white-label-v4.28.0]
+    paths: [.github/workflows/build-rebyte-web-arm64.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rebyte-observability-arm64-build
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: 001b0a1e279e3e6050fd6622413d252f678fad7d
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 50
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Verify source and native architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test -z "$(git status --porcelain)"
+          test "$(uname -m)" = aarch64
+          docker version
+          df -h
+
+      - name: Build web image without production credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rebyte-web-artifact"
+          docker buildx build --platform linux/arm64 -f web/Dockerfile \
+            --build-arg REBYTE_EMBED_ALLOWED_ORIGINS=https://app.rebyte.ai \
+            --build-arg NEXT_PUBLIC_BUILD_ID="$SOURCE_SHA" \
+            --label "org.opencontainers.image.revision=$SOURCE_SHA" \
+            --metadata-file "$RUNNER_TEMP/rebyte-web-artifact/build-metadata.json" \
+            --tag "rebyte-observability:embed-$SOURCE_SHA-arm64" \
+            --output "type=docker,dest=$RUNNER_TEMP/rebyte-web-artifact/image.tar" \
+            --progress plain .
+          cd "$RUNNER_TEMP/rebyte-web-artifact"
+          printf '%s\n' "$SOURCE_SHA" > source-sha.txt
+          sha256sum image.tar build-metadata.json source-sha.txt > SHA256SUMS
+
+      - name: Upload immutable candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rebyte-web-arm64-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/rebyte-web-artifact/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 2
