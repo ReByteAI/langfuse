@@ -36,6 +36,8 @@ jobs:
           test "$(uname -m)" = aarch64
           docker version
           df -h
+          docker buildx create --name rebyte-native-arm64 --driver docker-container --use
+          docker buildx inspect --bootstrap
 
       - name: Build web image without production credentials
         shell: bash
