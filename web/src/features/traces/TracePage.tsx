@@ -12,6 +12,8 @@ import { Button } from "@/src/components/ui/button";
 import Link from "next/link";
 import { stripBasePath } from "@/src/utils/redirect";
 import { Badge } from "@/src/components/ui/badge";
+import { withObservabilityEmbedParams } from "@/src/features/rebyte-federation/embed";
+import { useObservabilityDataStatus } from "@/src/features/rebyte-federation/EmbeddedObservability";
 
 export function TracePage({
   traceId,
@@ -23,6 +25,10 @@ export function TracePage({
   const router = useRouter();
   const session = useSession();
   const routeProjectId = (router.query.projectId as string) ?? "";
+  const traceListPath = withObservabilityEmbedParams(
+    `/project/${routeProjectId}/traces`,
+    router.query,
+  );
 
   // Shared, beta-aware fetch (same hook the peek uses).
   const trace = useTraceDetailData({
@@ -31,6 +37,19 @@ export function TracePage({
     timestamp,
   });
 
+  useObservabilityDataStatus(
+    trace.isUnauthorized
+      ? "auth-required"
+      : (trace.error as { data?: { code?: string } } | null)?.data?.code ===
+          "FORBIDDEN"
+        ? "forbidden"
+        : trace.isError || trace.isNotFound
+          ? "error"
+          : trace.data
+            ? "ready"
+            : undefined,
+  );
+
   const projectIdForAccessCheck = trace.data?.projectId ?? routeProjectId;
   const hasProjectAccess = useIsAuthenticatedAndProjectMember(
     projectIdForAccessCheck,
@@ -38,6 +57,17 @@ export function TracePage({
 
   if (trace.isUnauthorized)
     return <ErrorPage message="You do not have access to this trace." />;
+
+  if (trace.isError)
+    return (
+      <ErrorPage
+        message="Unable to load this trace."
+        additionalButton={{
+          label: "Retry",
+          onClick: () => window.location.reload(),
+        }}
+      />
+    );
 
   if (trace.isNotFound)
     return (
@@ -97,7 +127,7 @@ export function TracePage({
         breadcrumb: [
           {
             name: "Traces",
-            href: `/project/${router.query.projectId as string}/traces`,
+            href: traceListPath,
           },
         ],
         showSidebarTrigger: !showPublicIndicators,
@@ -126,7 +156,10 @@ export function TracePage({
                   ? `?${queryParams.toString()}`
                   : "";
 
-                return `/project/${projectId as string}/traces/${entry.id}${finalQueryString}`;
+                return withObservabilityEmbedParams(
+                  `/project/${projectId as string}/traces/${entry.id}${finalQueryString}`,
+                  router.query,
+                );
               }}
               listKey="traces"
               size="sm"
@@ -137,7 +170,7 @@ export function TracePage({
               isPublic={trace.data.public}
               name={trace.data.name}
               timestamp={timestamp}
-              deleteRedirectUrl={`/project/${router.query.projectId as string}/traces`}
+              deleteRedirectUrl={traceListPath}
             />
           </>
         ),
@@ -151,7 +184,7 @@ export function TracePage({
             isPublic={trace.data.public}
             name={trace.data.name}
             timestamp={timestamp}
-            deleteRedirectUrl={`/project/${router.query.projectId as string}/traces`}
+            deleteRedirectUrl={traceListPath}
             layout="menu"
           />
         ),

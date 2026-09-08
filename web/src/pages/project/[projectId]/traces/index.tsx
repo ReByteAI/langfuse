@@ -10,32 +10,38 @@ import {
 import { useReadPath } from "@/src/features/events/hooks/useReadPath";
 import ObservationsEventsTable from "@/src/features/events/components/EventsTable";
 import { useQueryProject } from "@/src/features/projects/hooks";
+import { useObservabilityEmbed } from "@/src/features/rebyte-federation/useObservabilityEmbed";
 
 export default function Traces() {
   const router = useRouter();
   const projectId = router.query.projectId as string;
+  const isEmbed = useObservabilityEmbed();
   const { isV4, isResolved } = useReadPath();
   const { project } = useQueryProject();
 
   // Check if the user has tracing configured
   // Skip polling entirely if the project flag is already set in the session
-  const { data: hasTracingConfigured, isLoading } =
-    api.traces.hasTracingConfigured.useQuery(
-      { projectId },
-      {
-        enabled: !!projectId,
-        trpc: {
-          context: {
-            skipBatch: true,
-          },
+  const {
+    data: hasTracingConfigured,
+    isLoading,
+    isError,
+  } = api.traces.hasTracingConfigured.useQuery(
+    { projectId },
+    {
+      enabled: !!projectId && !isEmbed,
+      trpc: {
+        context: {
+          skipBatch: true,
         },
-        refetchInterval: project?.hasTraces ? false : 10_000,
-        initialData: project?.hasTraces ? true : undefined,
-        staleTime: project?.hasTraces ? Infinity : 0,
       },
-    );
+      refetchInterval: project?.hasTraces ? false : 10_000,
+      initialData: project?.hasTraces ? true : undefined,
+      staleTime: project?.hasTraces ? Infinity : 0,
+    },
+  );
 
-  const showOnboarding = !isLoading && !hasTracingConfigured;
+  const showOnboarding =
+    !isEmbed && !isLoading && !isError && !hasTracingConfigured;
 
   if (showOnboarding) {
     return (

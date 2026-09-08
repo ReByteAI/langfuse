@@ -1,3 +1,4 @@
+import { useObservabilityEmbed } from "@/src/features/rebyte-federation/useObservabilityEmbed";
 import { TimeRangePicker } from "@/src/components/date-picker";
 import { DataTableRefreshButton } from "@/src/components/table/data-table-refresh-button";
 import { type RefreshInterval } from "@/src/components/table/utils/refresh-intervals";
@@ -6,6 +7,7 @@ import {
   TABLE_AGGREGATION_OPTIONS,
   type TimeRange,
 } from "@/src/utils/date-range-utils";
+import { EMBED_TABLE_AGGREGATION_OPTIONS } from "@/src/hooks/useTableDateRange";
 
 type RefreshControls = {
   onRefresh: () => void;
@@ -33,12 +35,15 @@ export function TableHeaderControls({
   setTimeRange: (timeRange: TimeRange) => void;
   refresh?: RefreshControls;
 }) {
+  const isEmbed = useObservabilityEmbed();
   return (
     <PageHeaderControlsPortal>
       <TimeRangePicker
         timeRange={timeRange}
         onTimeRangeChange={setTimeRange}
-        timeRangePresets={TABLE_AGGREGATION_OPTIONS}
+        timeRangePresets={
+          isEmbed ? EMBED_TABLE_AGGREGATION_OPTIONS : TABLE_AGGREGATION_OPTIONS
+        }
         className="my-0 max-w-full overflow-x-auto"
         triggerClassName="px-2"
       />

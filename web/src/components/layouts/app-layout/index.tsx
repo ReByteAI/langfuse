@@ -1,3 +1,4 @@
+import { useObservabilityEmbed } from "@/src/features/rebyte-federation/useObservabilityEmbed";
 /**
  * App Layout
  *
@@ -16,6 +17,7 @@ import { signOutCleanly } from "@/src/features/auth/lib/signOut";
 import { clearV4BetaEnabledSentryTag } from "@/src/utils/sentryV4BetaTag";
 import { useQueryProjectOrOrganization } from "@/src/features/projects/hooks";
 import { ErrorPage } from "@/src/components/error-page";
+import { EmbeddedObservability } from "@/src/features/rebyte-federation/EmbeddedObservability";
 
 // Layout variants
 import { LoadingLayout } from "./variants/LoadingLayout";
@@ -41,6 +43,7 @@ import { useLayoutMetadata } from "./hooks/useLayoutMetadata";
 export function AppLayout(props: PropsWithChildren) {
   const router = useRouter();
   const session = useSession();
+  const isEmbed = useObservabilityEmbed();
   const { organization } = useQueryProjectOrOrganization();
 
   // `session.update()` reports `loading` with the previous session still in
@@ -70,6 +73,8 @@ export function AppLayout(props: PropsWithChildren) {
 
   // Handle auth guard actions (redirect or sign-out)
   useEffect(() => {
+    // Federation must run in a top-level tab; the embedded shell owns reconnect UX.
+    if (!router.isReady || isEmbed) return;
     if (authGuard.action === "redirect") {
       router.replace(authGuard.url);
     } else if (authGuard.action === "sign-out") {
@@ -79,7 +84,27 @@ export function AppLayout(props: PropsWithChildren) {
       clearV4BetaEnabledSentryTag();
       signOut({ redirect: false });
     }
-  }, [authGuard, router]);
+  }, [authGuard, router, isEmbed]);
+
+  if (isEmbed) {
+    if (authGuard.action === "loading") {
+      return (
+        <EmbeddedObservability>
+          <LoadingLayout message="Loading" />
+        </EmbeddedObservability>
+      );
+    }
+    if (!sessionData?.user || session.status === "unauthenticated") {
+      return <EmbeddedObservability status="auth-required" />;
+    }
+    if (authGuard.action !== "allow") {
+      return <EmbeddedObservability status="auth-required" />;
+    }
+    if (!projectAccess.hasAccess) {
+      return <EmbeddedObservability status="forbidden" />;
+    }
+    return <EmbeddedObservability>{props.children}</EmbeddedObservability>;
+  }
 
   // Loading or redirecting state. Loading only applies to a cold load: once a
   // shell has rendered, a re-check keeps it instead of unmounting it.

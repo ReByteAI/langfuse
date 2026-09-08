@@ -1,3 +1,4 @@
+import { useObservabilityEmbed } from "@/src/features/rebyte-federation/useObservabilityEmbed";
 import { useSession } from "next-auth/react";
 
 /** The events read path a data-fetching surface must use. */
@@ -21,11 +22,12 @@ export function useReadPath(): {
   canToggleV4: boolean;
 } {
   const { data: session, status } = useSession();
+  const isEmbed = useObservabilityEmbed();
 
   // A session re-check reports "loading" with the previous session still in
   // hand — that keeps the resolved path. Only a cold load is unknown.
   const readPath: ReadPath = session?.user
-    ? session.user.v4BetaEnabled === true
+    ? isEmbed || session.user.v4BetaEnabled === true
       ? "v4"
       : "v3"
     : status === "loading"
@@ -37,6 +39,6 @@ export function useReadPath(): {
     isV4: readPath === "v4",
     isV3Legacy: readPath === "v3",
     isResolved: readPath !== "unknown",
-    canToggleV4: session?.user?.canToggleV4 === true,
+    canToggleV4: !isEmbed && session?.user?.canToggleV4 === true,
   };
 }

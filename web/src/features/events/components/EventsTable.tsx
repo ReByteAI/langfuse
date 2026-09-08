@@ -1,4 +1,6 @@
+import { useObservabilityEmbed } from "@/src/features/rebyte-federation/useObservabilityEmbed";
 import { DataTable } from "@/src/components/table/data-table";
+import { useObservabilityDataStatus } from "@/src/features/rebyte-federation/EmbeddedObservability";
 import { DataTableToolbar } from "@/src/components/table/data-table-toolbar";
 import {
   DataTableControlsProvider,
@@ -67,7 +69,10 @@ import {
   getRowHeightIOCharLimit,
   useRowHeightLocalStorage,
 } from "@/src/components/table/data-table-row-height-switch";
-import { useTableDateRange } from "@/src/hooks/useTableDateRange";
+import {
+  useTableDateRange,
+  EMBED_TABLE_AGGREGATION_OPTIONS,
+} from "@/src/hooks/useTableDateRange";
 import { useLiveTableDateRange } from "@/src/hooks/useLiveTableDateRange";
 import { usePaginationWindowPin } from "@/src/components/table/hooks/usePaginationWindowPin";
 import {
@@ -350,6 +355,7 @@ export default function ObservationsEventsTable({
     order: "DESC",
   });
 
+  const isEmbed = useObservabilityEmbed();
   const { timeRange, setTimeRange } = useTableDateRange(projectId);
 
   // Disabled for now because perhaps confusing — replaced by "Is Root Observation"
@@ -802,7 +808,8 @@ export default function ObservationsEventsTable({
   // scoped. Unlike the old gate, an unsupported filter no longer HIDES the
   // chart: the chart forwards what it can and the sidebar + search bar mark the
   // rest as "not applied" (see chartFilterExclusions below).
-  const chartEnabled = !hideControls && !userId && !sessionId;
+  const chartEnabled =
+    !hideControls && !userId && !sessionId && (!isEmbed || !!dateRange);
 
   // Hide the strip where it would silently diverge from the table: prompt-version scope (not forwardable, no "not applied" affordance) or external date/filter pins.
   const outlierStripEnabled =
@@ -831,6 +838,7 @@ export default function ObservationsEventsTable({
     handleAddToAnnotationQueue,
     isFetching,
     isIoPending,
+    error: observationsError,
     isSilencedError,
     usedAppRootFallback,
   } = useEventsTableData({
@@ -1701,6 +1709,20 @@ export default function ObservationsEventsTable({
       (queryFilter.explicitFilterState ?? []).map((filter) => filter.column),
     ).size + (searchQuery && searchQuery.trim().length > 0 ? 1 : 0);
 
+  useObservabilityDataStatus(
+    isEmbed
+      ? observationsError?.data?.code === "UNAUTHORIZED"
+        ? "auth-required"
+        : observationsError?.data?.code === "FORBIDDEN"
+          ? "forbidden"
+          : observations.status === "error"
+            ? "error"
+            : observations.status === "success"
+              ? "ready"
+              : undefined
+      : undefined,
+  );
+
   return (
     <DataTableControlsProvider tableName={eventsFilterConfig.tableName}>
       <div className="flex h-full w-full flex-col">
@@ -1771,7 +1793,11 @@ export default function ObservationsEventsTable({
                     compact
                     timeRange={timeRange}
                     onTimeRangeChange={setTimeRange}
-                    timeRangePresets={TABLE_AGGREGATION_OPTIONS}
+                    timeRangePresets={
+                      isEmbed
+                        ? EMBED_TABLE_AGGREGATION_OPTIONS
+                        : TABLE_AGGREGATION_OPTIONS
+                    }
                     className="my-0"
                   />
                   <DataTableRefreshButton

@@ -17,6 +17,7 @@ import {
   type TRPCLink,
 } from "@trpc/client";
 import { QueryCache } from "@tanstack/react-query";
+import { postObservabilityStatus } from "@/src/features/rebyte-federation/embed";
 import { createTRPCNext } from "@trpc/next";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import { observable } from "@trpc/server/observable";
@@ -401,6 +402,11 @@ const shouldShowToast = (error: unknown): boolean => {
 };
 
 const handleTrpcError = (error: unknown, shouldSilenceError = false) => {
+  if (error instanceof TRPCClientError) {
+    const code = getTrpcErrorCode(error);
+    if (code === "UNAUTHORIZED") postObservabilityStatus("auth-required");
+    if (code === "FORBIDDEN") postObservabilityStatus("forbidden");
+  }
   if (error instanceof TRPCClientError) {
     const httpStatus: number =
       typeof error.data?.httpStatus === "number" ? error.data.httpStatus : 500;

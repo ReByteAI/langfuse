@@ -15,6 +15,11 @@
 ## High-Signal Entry Points
 
 - App shell/providers: `src/pages/_app.tsx`
+- Rebyte iframe hosting and federation login: `src/features/rebyte-federation/README.md`.
+  `REBYTE_EMBED_ALLOWED_ORIGINS` is a build-time setting in `next.config.mjs`.
+  Trace list/detail `embed=1` presentation and the exact-origin parent status
+  bridge live in `src/features/rebyte-federation/EmbeddedObservability.tsx` and
+  `embed.ts`; embedding must preserve session and project authorization.
 - tRPC context/procedures: `src/server/api/trpc.ts`
 - tRPC router registry: `src/server/api/root.ts`
 - tRPC routers: `src/server/api/routers/*`, `src/features/*/server/*`

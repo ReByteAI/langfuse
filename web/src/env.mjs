@@ -136,6 +136,8 @@ export const env = createEnv({
       .enum(["true", "false"])
       .optional()
       .default("false"),
+    // Build-time list validated by next.config.mjs, even when DOCKER_BUILD skips env validation.
+    REBYTE_EMBED_ALLOWED_ORIGINS: z.string().optional(),
     // Telemetry
     TELEMETRY_ENABLED: z.enum(["true", "false"]).optional(),
     // Mulesoft SFDC sync (Langfuse Cloud only). All must be set for the
@@ -750,6 +752,7 @@ export const env = createEnv({
       process.env.MULESOFT_SFDC_REQUEST_TIMEOUT_MS,
     SALT: process.env.SALT,
     LANGFUSE_CSP_ENFORCE_HTTPS: process.env.LANGFUSE_CSP_ENFORCE_HTTPS,
+    REBYTE_EMBED_ALLOWED_ORIGINS: process.env.REBYTE_EMBED_ALLOWED_ORIGINS,
     TELEMETRY_ENABLED: process.env.TELEMETRY_ENABLED,
     // Default org, project and role
     LANGFUSE_DEFAULT_ORG_ID: process.env.LANGFUSE_DEFAULT_ORG_ID,

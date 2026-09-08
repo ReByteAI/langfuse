@@ -1,4 +1,5 @@
 import { getPathnameWithoutBasePath } from "@/src/utils/api";
+import { withObservabilityEmbedParams } from "@/src/features/rebyte-federation/embed";
 import { type ListEntry } from "@/src/features/navigate-detail-pages/context";
 import { useRouter } from "next/router";
 import { useCallback } from "react";
@@ -246,7 +247,10 @@ export function usePeekNavigation(config: PeekConfig | PeekConfigWithExpand) {
         })
         .filter(Boolean)
         .join("&");
-      const pathnameWithQuery = `${pathname}?${queryParams}`;
+      const pathnameWithQuery = withObservabilityEmbedParams(
+        `${pathname}?${queryParams}`,
+        router.query,
+      );
 
       if (openInNewTab) {
         capture("peek:open_in_new_tab", { routePattern, isV4, tableName });

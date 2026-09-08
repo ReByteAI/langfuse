@@ -42,6 +42,38 @@ const localStorageConnectSrc =
 const assetPrefixSrc = env.NEXT_PUBLIC_ASSET_PREFIX
   ? `${new URL(env.NEXT_PUBLIC_ASSET_PREFIX).origin} `
   : "";
+// Next.js serializes these headers at build time, including in Docker images.
+const embedAllowedOrigins = (env.REBYTE_EMBED_ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+  .map((origin) => {
+    const invalidOrigin = () => {
+      throw new Error(
+        "REBYTE_EMBED_ALLOWED_ORIGINS requires exact HTTPS origins without paths, credentials, or wildcards (HTTP is allowed only for localhost).",
+      );
+    };
+    if (
+      !/^https?:\/\/(?:[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*|\[::1\])(?::\d+)?\/?$/.test(
+        origin,
+      )
+    ) {
+      return invalidOrigin();
+    }
+    let url;
+    try {
+      url = new URL(origin);
+    } catch {
+      return invalidOrigin();
+    }
+    if (
+      url.protocol !== "https:" &&
+      !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+    ) {
+      return invalidOrigin();
+    }
+    return url.origin;
+  });
 const cspHeader = `
   default-src 'self' ${assetPrefixSrc}https://*.langfuse.com https://*.langfuse.dev https://*.posthog.com https://*.sentry.io;
   script-src 'self' 'unsafe-eval' 'unsafe-inline' ${assetPrefixSrc}https://*.langfuse.com https://*.langfuse.dev https://challenges.cloudflare.com https://*.sentry.io  https://static.cloudflareinsights.com https://*.stripe.com https://login.microsoftonline.com https://login.microsoft.com https://*.microsoftonline.com;
@@ -53,7 +85,7 @@ const cspHeader = `
   object-src 'none';
   base-uri 'self';
   form-action 'self' https://login.microsoftonline.com https://login.microsoft.com https://*.microsoftonline.com;
-  frame-ancestors 'none';
+  frame-ancestors ${embedAllowedOrigins.length ? embedAllowedOrigins.join(" ") : "'none'"};
   connect-src 'self' ${localStorageConnectSrc}${mediaUploadConnectSrc}${assetPrefixSrc}https://*.langfuse.com https://*.langfuse.dev https://*.ingest.us.sentry.io https://*.sentry.io https://chat.uk.plain.com https://*.amazonaws.com https://*.blob.core.windows.net https://storage.googleapis.com https://prod-uk-services-attachm-attachmentsuploadbucket2-1l2e4906o2asm.s3.eu-west-2.amazonaws.com https://login.microsoftonline.com https://login.microsoft.com https://*.microsoftonline.com https://graph.microsoft.com;
   media-src 'self' https: http://localhost:*;
   ${env.LANGFUSE_CSP_ENFORCE_HTTPS === "true" ? "upgrade-insecure-requests; block-all-mixed-content;" : ""}
@@ -109,6 +141,9 @@ const nextConfig = {
     "@opentelemetry/instrumentation-winston",
   ],
   poweredByHeader: false,
+  env: {
+    NEXT_PUBLIC_REBYTE_EMBED_ALLOWED_ORIGINS: embedAllowedOrigins.join(","),
+  },
   basePath: env.NEXT_PUBLIC_BASE_PATH,
   // Hand the browser a dedicated hostname for this build's `/_next/static/*`
   // output so a CDN in front of it can keep serving the chunks of a build that
@@ -233,20 +268,19 @@ const nextConfig = {
           ...(env.SENTRY_CSP_REPORT_URI ? [reportToHeader] : []),
         ],
       },
-      {
-        source: "/:path*",
-        headers: [
-          {
-            key: "x-frame-options",
-            value: "SAMEORIGIN",
-          },
-        ],
-        // Disable x-frame-options on Hugging Face to allow for embedded use of Langfuse
-        missing: huggingFaceHosts.map((host) => ({
-          type: "host",
-          value: host,
-        })),
-      },
+      ...(embedAllowedOrigins.length
+        ? []
+        : [
+            {
+              source: "/:path*",
+              headers: [{ key: "x-frame-options", value: "SAMEORIGIN" }],
+              // Hugging Face supports embedding through its existing host exception.
+              missing: huggingFaceHosts.map((host) => ({
+                type: /** @type {"host"} */ ("host"),
+                value: host,
+              })),
+            },
+          ]),
       // CSP header
       {
         source: "/:path((?!api).*)*",
@@ -258,7 +292,7 @@ const nextConfig = {
         ],
         // Disable CSP on Hugging Face to allow for embedded use of Langfuse
         missing: huggingFaceHosts.map((host) => ({
-          type: "host",
+          type: /** @type {"host"} */ ("host"),
           value: host,
         })),
       },

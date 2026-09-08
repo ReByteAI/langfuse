@@ -1,3 +1,4 @@
+import { useObservabilityEmbed } from "@/src/features/rebyte-federation/useObservabilityEmbed";
 import PageHeader, {
   type PageHeaderProps,
 } from "@/src/components/layouts/page-header";
@@ -6,6 +7,7 @@ import { MobileTopBar } from "@/src/components/layouts/mobile-top-bar";
 import { MobilePageTitle } from "@/src/components/layouts/mobile-page-title";
 import { useIsMobile } from "@/src/hooks/use-mobile";
 import { cn } from "@/src/utils/tailwind";
+import { EmbeddedObservabilityHeader } from "@/src/features/rebyte-federation/EmbeddedObservability";
 
 type PageContainerProps = {
   children: React.ReactNode;
@@ -26,6 +28,7 @@ const Page = ({
   // controls-slot target for the time-range / refresh portal — two live targets
   // would fight over the single slot node.
   const isMobile = useIsMobile();
+  const isEmbed = useObservabilityEmbed();
 
   return (
     <PageHeaderControlsSlotProvider>
@@ -39,7 +42,9 @@ const Page = ({
         id="page"
       >
         <header className="sticky top-0 z-50 w-full">
-          {isMobile ? (
+          {isEmbed ? (
+            <EmbeddedObservabilityHeader {...headerProps} />
+          ) : isMobile ? (
             <MobileTopBar
               showSidebarTrigger={headerProps.showSidebarTrigger}
               leadingControl={headerProps.leadingControl}
@@ -48,7 +53,7 @@ const Page = ({
             <PageHeader {...headerProps} container={false} className="top-0" />
           )}
         </header>
-        {isMobile && <MobilePageTitle headerProps={headerProps} />}
+        {isMobile && !isEmbed && <MobilePageTitle headerProps={headerProps} />}
         <main
           className={cn(
             "flex flex-1 flex-col",

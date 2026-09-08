@@ -1,3 +1,4 @@
+import { useObservabilityEmbed } from "@/src/features/rebyte-federation/useObservabilityEmbed";
 import {
   type TableDateRangeAggregationOption,
   TABLE_AGGREGATION_OPTIONS,
@@ -6,6 +7,11 @@ import {
   useGlobalDateRange,
   type UseGlobalDateRangeOutput,
 } from "@/src/features/global-time-range/useGlobalDateRange";
+
+export const EMBED_TABLE_AGGREGATION_OPTIONS = [
+  ...TABLE_AGGREGATION_OPTIONS,
+  "allTime",
+] as const;
 
 export type UseTableDateRangeOutput = UseGlobalDateRangeOutput;
 
@@ -19,9 +25,13 @@ export function useTableDateRange(
     persistAsDefault?: boolean;
   } = {},
 ): UseTableDateRangeOutput {
+  const isEmbed = useObservabilityEmbed();
   return useGlobalDateRange({
-    allowedRanges: TABLE_AGGREGATION_OPTIONS,
-    fallback: options.defaultRelativeAggregation ?? "last1Day",
-    persistAsDefault: options.persistAsDefault,
+    allowedRanges: isEmbed
+      ? EMBED_TABLE_AGGREGATION_OPTIONS
+      : TABLE_AGGREGATION_OPTIONS,
+    fallback:
+      options.defaultRelativeAggregation ?? (isEmbed ? "allTime" : "last1Day"),
+    persistAsDefault: isEmbed ? false : options.persistAsDefault,
   });
 }
